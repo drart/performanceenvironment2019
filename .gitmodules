@@ -1,0 +1,9 @@
+[submodule "lib/artlib"]
+	path = lib/artlib
+	url = https://github.com/drart/artlib.js.git
+[submodule "lib/flocking"]
+	path = lib/flocking
+	url = https://github.com/colinbdclark/Flocking.git
+[submodule "lib/osc"]
+	path = lib/osc
+	url = https://github.com/colinbdclark/osc.js.git

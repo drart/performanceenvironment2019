@@ -1,0 +1,196 @@
+<html>
+    <head>
+        <script src="lib/osc/dist/osc-browser.min.js"></script>
+        <script src="lib/flocking/dist/flocking-all.js"></script>
+        <script src="lib/artlib/adam.js"></script>
+        <!--script src="lib/myojs/myo.js"></script-->
+        <!--script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.16/p5.js"></script-->
+
+        <script>
+            flock.init({
+                chans:4, 
+                bufferSize: 256
+            });
+            var as = flock.environment.audioSystem;
+        </script>
+        <style>
+            body{
+                padding: 0;
+                margin: 0;
+            }
+            #meter{
+                position: fixed;
+                bottom: 0;
+                left: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+            var oscPort = new osc.WebSocketPort({
+                url: "ws://localhost:8080", 
+                metadata: true
+            });
+            oscPort.open();
+            oscPort.on("bundle", function(bundle){
+                    //console.log(bundle.packets);
+                    for (var i = 0; i < bundle.packets.length; i++){
+                        if (bundle.packets[i].args[0].value === "set"){
+                            var xxx = bundle.packets[i].args[2].value;
+                            var yyy = bundle.packets[i].args[3].value;
+
+
+                            var touchdiv =  document.getElementById( bundle.packets[i].args[1].value );
+                            if(touchdiv === null){
+                                var newaddress = document.createElement("div");
+                                newaddress.id = bundle.packets[i].args[1].value;
+                                newaddress.innerHTML = fluid.prettyPrintJSON(bundle.packets[i]);
+                                var recenttouch = document.getElementById("osctarget").firstChild;
+                                document.getElementById("osctarget").insertBefore(newaddress, recenttouch);
+                            } else{
+                               touchdiv.innerHTML = fluid.prettyPrintJSON(bundle.packets[i]);
+                            }
+                        } 
+
+                        if (bundle.packets[i].args[0].value === "alive"){
+                            //console.log(bundle.packets[i].args.length);
+                            var livemessages = document.getElementById("osctarget");
+                            for (var l = 0; l < livemessages.children.length; l++){
+                                var foundit = false;
+                                for(var j = 1; j< bundle.packets[i].args.length; j++){
+                                    if(livemessages.children[l].id === bundle.packets[i].args[j].value.toString()){
+                                        foundit = true;
+                                        break;
+                                    }
+                                } 
+                                if (!foundit){
+                                    livemessages.children[l].remove(); 
+                                }
+                            }
+                        }
+                    }
+
+                    // bad way to do this...
+                    var livemessages = document.getElementById("osctarget");
+                    for( var i = 0; i < livemessages.children.length; i++){
+                        var superdata = JSON.parse (livemessages.children[i].innerHTML );
+                        //console.log(livemessages.children[i].innerHTML);
+                        //console.log(superdata);
+                        //mintsynth.set("things.freq", yyy * 300 + 1);
+                        // range of 0.01 to 0.2 is pretty great
+                        //mintsynth.set("granny.grainDur", xxx / 5);
+                        if (i === 0){
+                            mintsynth.set("granny.grainDur", superdata.args[2].value / 5 + 0.01);
+                        }
+                        mintsynth.set("thing" + (i+1) + ".freq", superdata.args[3].value * 300 + 1);
+                        mintsynth.set("thing" + (i+1) + ".mul", 0.4);
+                    }
+                    if(livemessages.children.length < 5){
+                        for (var j = livemessages.children.length; j < 5; j++){
+                            mintsynth.set("thing" + (j+1) + ".mul", 0);
+                        }
+                    }
+
+
+            });
+            oscPort.on("message", function(msg){
+                if (document.getElementById(msg.address) === null){
+                    //console.log(fluid.prettyPrintJSON(msg)); 
+                    //console.log(msg.args);
+
+                    //var newaddress = document.createElement("div");
+                    //newaddress.id = msg.address;
+                    //var recenttouch = document.getElementById("osctarget").firstChild;
+                    //document.getElementById("osctarget").insertBefore(newaddress, recenttouch);
+                } else{
+                
+                    //console.log(fluid.prettyPrintJSON(msg)); 
+                }
+
+                //document.getElementById(msg.address).innerHTML = fluid.prettyPrintJSON(msg); 
+            });
+        </script>
+        <script>
+            var mintsynth = flock.synth({
+                synthDef:{
+                    ugen: "flock.ugen.freeverb",
+                    mix: 1, 
+                    damp: 0.7,
+                    room: 0.9,
+                    mul: 4,
+                    source: {
+                        ugen: "flock.ugen.granulator",
+                        id: "granny",
+                        numGrains: 20,
+                        grainDur: 0.01,
+                        delay: 8,
+                        source: {
+                            ugen: "flock.ugen.sum",
+                            sources:[
+                                {
+                                   id: "thing1",
+                                   ugen: "flock.ugen.saw", 
+                                   freq: 300,
+                                   mul: 0
+                                },
+                                {
+                                   id: "thing2",
+                                   ugen: "flock.ugen.saw", 
+                                   freq: 300,
+                                   mul: 0.0
+                                },
+                                {
+                                   id: "thing3",
+                                   ugen: "flock.ugen.saw", 
+                                   freq: 300,
+                                   mul: 0.0
+                                },
+                                {
+                                   id: "thing4",
+                                   ugen: "flock.ugen.saw", 
+                                   freq: 300,
+                                   mul: 0.0
+                                },
+                                {
+                                   id: "thing5",
+                                   ugen: "flock.ugen.saw", 
+                                   freq: 300,
+                                   mul: 0.0
+                                }
+                            ],
+                        }
+                    }
+                } 
+            });
+        </script>
+
+
+        <input type="checkbox" id="sf1" name="sf1"><span id="sf1-label"></span>
+        <input type="checkbox" id="sf2" name="sf2"><span id="sf2-label"></span>
+        <input type="checkbox" id="sf3" name="sf3"><span id="sf3-label"></span>
+        <input type="checkbox" id="sf4" name="sf4"><span id="sf4-label"></span>
+
+        <hr>
+
+        <input type="checkbox" id="starter" name="starter"><span >start audio</span>
+	<script>
+		document.getElementById('starter').onclick= function(){
+            console.log("restarted audio");
+			flock.webAudio.audioSystem.audioContextSingleton.resume();
+		};
+	</script>
+
+        <h2>OSC</h2>
+        <div id="osctarget"></div>
+
+        <!--script src="midicontrollers.js"></script>
+        <script src="performancemappings.js"> </script> 
+        <!--script src="visuals.js"> </script--> 
+
+
+        <script> 
+            //november2018();
+            flock.enviro.shared.play();
+        </script>
+    </body>
+</html>
