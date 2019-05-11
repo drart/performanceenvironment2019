@@ -3,7 +3,6 @@
         <script src="lib/osc/dist/osc-browser.min.js"></script>
         <script src="lib/flocking/dist/flocking-all.js"></script>
         <script src="lib/artlib/adam.js"></script>
-        <!--script src="lib/myojs/myo.js"></script-->
         <!--script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.16/p5.js"></script-->
 
         <script>
@@ -27,6 +26,8 @@
     </head>
     <body>
         <script>
+            var livetouches = []; // put all touches in here
+                                  // for every TUIO message audit the array, update the DOM, update the flocking mapping
             var oscPort = new osc.WebSocketPort({
                 url: "ws://localhost:8080", 
                 metadata: true
@@ -35,22 +36,7 @@
             oscPort.on("bundle", function(bundle){
                     //console.log(bundle.packets);
                     for (var i = 0; i < bundle.packets.length; i++){
-                        if (bundle.packets[i].args[0].value === "set"){
-                            var xxx = bundle.packets[i].args[2].value;
-                            var yyy = bundle.packets[i].args[3].value;
-
-
-                            var touchdiv =  document.getElementById( bundle.packets[i].args[1].value );
-                            if(touchdiv === null){
-                                var newaddress = document.createElement("div");
-                                newaddress.id = bundle.packets[i].args[1].value;
-                                newaddress.innerHTML = fluid.prettyPrintJSON(bundle.packets[i]);
-                                var recenttouch = document.getElementById("osctarget").firstChild;
-                                document.getElementById("osctarget").insertBefore(newaddress, recenttouch);
-                            } else{
-                               touchdiv.innerHTML = fluid.prettyPrintJSON(bundle.packets[i]);
-                            }
-                        } 
+                        TUIOsetMessageToHTML(bundle.packets[i]);
 
                         if (bundle.packets[i].args[0].value === "alive"){
                             //console.log(bundle.packets[i].args.length);
@@ -74,11 +60,7 @@
                     var livemessages = document.getElementById("osctarget");
                     for( var i = 0; i < livemessages.children.length; i++){
                         var superdata = JSON.parse (livemessages.children[i].innerHTML );
-                        //console.log(livemessages.children[i].innerHTML);
-                        //console.log(superdata);
-                        //mintsynth.set("things.freq", yyy * 300 + 1);
                         // range of 0.01 to 0.2 is pretty great
-                        //mintsynth.set("granny.grainDur", xxx / 5);
                         if (i === 0){
                             mintsynth.set("granny.grainDur", superdata.args[2].value / 5 + 0.01);
                         }
@@ -91,24 +73,32 @@
                         }
                     }
 
-
             });
             oscPort.on("message", function(msg){
-                if (document.getElementById(msg.address) === null){
-                    //console.log(fluid.prettyPrintJSON(msg)); 
-                    //console.log(msg.args);
-
-                    //var newaddress = document.createElement("div");
-                    //newaddress.id = msg.address;
-                    //var recenttouch = document.getElementById("osctarget").firstChild;
-                    //document.getElementById("osctarget").insertBefore(newaddress, recenttouch);
-                } else{
-                
-                    //console.log(fluid.prettyPrintJSON(msg)); 
+                if(msg.args[0].value === "set"){
+                    TUIOsetMessageToHTML(msg);
+                };
+                if(msg.args[0].value === "alive"){
+                    //console.log(msg);
                 }
-
-                //document.getElementById(msg.address).innerHTML = fluid.prettyPrintJSON(msg); 
             });
+
+            function TUIOsetMessageToHTML(packet){
+                if (packet.address === "/tuio/2Dcur"){
+                    if (packet.args[0].value === "set"){
+                        var touchdiv =  document.getElementById( packet.args[1].value );
+                        if(touchdiv === null){
+                            var newaddress = document.createElement("div");
+                            newaddress.id = packet.args[1].value;
+                            newaddress.innerHTML = fluid.prettyPrintJSON(packet);
+                            var recenttouch = document.getElementById("osctarget").firstChild;
+                            document.getElementById("osctarget").insertBefore(newaddress, recenttouch);
+                        } else{
+                           touchdiv.innerHTML = fluid.prettyPrintJSON(packet);
+                        }
+                    }
+                }
+            };
         </script>
         <script>
             var mintsynth = flock.synth({
@@ -162,34 +152,75 @@
                     }
                 } 
             });
+
+            var basssynth = flock.synth({
+                synthDef: {
+                    ugen: "flock.ugen.distortion.tarrabiaDeJong",
+                    amount: {
+                        ugen: "flock.ugen.sin",
+                        rate: "control",
+                        id: "thing",
+                        freq: 0.1 /// change this value!
+                    },
+                    source: {
+                        ugen: "flock.ugen.saw",
+                        freq: {
+                            ugen: "flock.ugen.square",
+                            mul: {
+                                ugen: "flock.ugen.sin",
+                                mul: 30,
+                                freq: 2
+                            },
+                            add: 100
+                        }
+                    }
+                }
+            });
+            basssynth.pause();
+
         </script>
 
-
         <input type="checkbox" id="sf1" name="sf1"><span id="sf1-label"></span>
+        <input type="range" min="1" max="100" value="50" class="slider" id="myRange">
         <input type="checkbox" id="sf2" name="sf2"><span id="sf2-label"></span>
+        <input type="range" min="1" max="100" value="50" class="slider" id="myRange2">
         <input type="checkbox" id="sf3" name="sf3"><span id="sf3-label"></span>
+        <input type="range" min="1" max="100" value="50" class="slider" id="myRange3">
         <input type="checkbox" id="sf4" name="sf4"><span id="sf4-label"></span>
+        <input type="range" min="1" max="100" value="50" class="slider" id="myRange4">
+        <script>
+            document.getElementById('sf1').onclick = function(){
+                if(this.checked){
+                    basssynth.play()
+                }else{
+                    basssynth.pause()
+                }
+            };
+       
+            document.getElementById('myRange').onchange = function(){
+                basssynth.set("thing.freq", this.value/10);
+                console.log(basssynth.get("thing.freq"));
+            }
+        
+        </script>
 
         <hr>
 
         <input type="checkbox" id="starter" name="starter"><span >start audio</span>
-	<script>
-		document.getElementById('starter').onclick= function(){
-            console.log("restarted audio");
-			flock.webAudio.audioSystem.audioContextSingleton.resume();
-		};
-	</script>
+        <script>
+            document.getElementById('starter').onclick= function(){
+                if (this.checked){
+                    flock.webAudio.audioSystem.audioContextSingleton.resume();
+                }else{
+                    //flock.enviro.shared.stop();
+                }
+            };
+        </script>
 
         <h2>OSC</h2>
         <div id="osctarget"></div>
 
-        <!--script src="midicontrollers.js"></script>
-        <script src="performancemappings.js"> </script> 
-        <!--script src="visuals.js"> </script--> 
-
-
         <script> 
-            //november2018();
             flock.enviro.shared.play();
         </script>
     </body>
