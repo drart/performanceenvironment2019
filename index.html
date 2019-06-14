@@ -26,20 +26,29 @@
     </head>
     <body>
         <script>
-            var livetouches = []; // put all touches in here
-                                  // for every TUIO message audit the array, update the DOM, update the flocking mapping
-            var oscPort = new osc.WebSocketPort({
-                url: "ws://localhost:8080", 
-                metadata: true
-            });
-            oscPort.open();
-            oscPort.on("bundle", function(bundle){
-                    //console.log(bundle.packets);
-                    for (var i = 0; i < bundle.packets.length; i++){
-                        TUIOsetMessageToHTML(bundle.packets[i]);
+        var livetouches = {}; // put all touches in here
 
+        var oscPort = new osc.WebSocketPort({
+            url: "ws://localhost:8080", 
+            metadata: true
+        });
+
+        oscPort.open();
+        oscPort.on("bundle", function(bundle){
+            //console.log(bundle);
+            for (var i = 0; i < bundle.packets.length; i++){
+                    // move this to array to DOM
+                    //TUIOsetMessageToHTML(bundle.packets[i]);
+                   
+                TUIOmessagesToObject( bundle.packets[i] ); 
+                //console.log(livetouches);
+                TUIOaliveToObject( bundle.packets[i] );
+                //arraytomapping(livetouches);
+                        //touchArraytoDOM( livetouches );
+
+                        /*
                         if (bundle.packets[i].args[0].value === "alive"){
-                            //console.log(bundle.packets[i].args.length);
+                            //console.log(bundle.packets[i]);
                             var livemessages = document.getElementById("osctarget");
                             for (var l = 0; l < livemessages.children.length; l++){
                                 var foundit = false;
@@ -53,9 +62,10 @@
                                     livemessages.children[l].remove(); 
                                 }
                             }
-                        }
-                    }
+                        } */
+            }
 
+                    /*
                     // bad way to do this...
                     var livemessages = document.getElementById("osctarget");
                     for( var i = 0; i < livemessages.children.length; i++){
@@ -72,16 +82,40 @@
                             mintsynth.set("thing" + (j+1) + ".mul", 0);
                         }
                     }
+                    */
 
-            });
+        });
+
             oscPort.on("message", function(msg){
-                if(msg.args[0].value === "set"){
-                    TUIOsetMessageToHTML(msg);
-                };
-                if(msg.args[0].value === "alive"){
-                    //console.log(msg);
-                }
+                //console.log(msg);
+                TUIOmessagesToObject( msg ); 
+                TUIOaliveToObject( msg );
+                //arraytomapping(livetouches);
+                //touchArraytoDOM( livetouches );
             });
+
+            //////// SUPER BROKEN
+            function touchArraytoDOM(touches){
+                //document.getElementById("osctarget").removeChildren();
+                //console.log( "print to dom" );
+
+                const oscnode = document.getElementById("osctarget");
+                while (oscnode.lastChild) {
+                      oscnode.removeChild(oscnode.lastChild);
+                }
+
+
+                for(var i = 0; i < touches.length; i++){
+
+                    console.log(touches.length);
+
+                    var newaddress = document.createElement("div");
+                    newaddress.id = touches[i]; 
+                    var recenttouch = oscnode.firstChild;
+                    oscnode.insertbefore(newaddress, recenttouch);
+                } 
+            };
+
 
             function TUIOsetMessageToHTML(packet){
                 if (packet.address === "/tuio/2Dcur"){
@@ -99,6 +133,86 @@
                     }
                 }
             };
+
+            ///// super broken
+            function arraytomapping(touches){
+                /*
+            
+                    for( var i = 0; i < touches.length; i++){
+                        // range of 0.01 to 0.2 is pretty great
+                        if (i === 0){
+                            mintsynth.set("granny.grainDur", superdata.args[2].value / 5 + 0.01);
+                        }
+                        mintsynth.set("thing" + (i+1) + ".freq", superdata.args[3].value * 300 + 1);
+                        mintsynth.set("thing" + (i+1) + ".mul", 0.4);
+                    }
+                    if(livemessages.children.length < 5){
+                        for (var j = livemessages.children.length; j < 5; j++){
+                            mintsynth.set("thing" + (j+1) + ".mul", 0);
+                        }
+                    }
+
+                */ 
+            };
+
+            function TUIOmessagesToObject(packet){
+                if (packet.address === "/tuio/2Dcur"){
+                    //console.log( typeof packet.args[0].value );
+                    //console.log(packet);
+                    if (packet.args[0].value === "set"){
+                        //console.log(packet);
+                        livetouches[ packet.args[1].value ] = [ packet.args[2].value, packet.args[3].value ];
+                    }
+                }
+            };
+
+            //broken?
+            function TUIOaliveToObject(packet){
+                if (packet.address === "/tuio/2Dcur"){
+                    if(packet.args[0].value === "alive"){
+                        var packetargs = packet.args;
+                        packetargs.shift(); // remove first element which is the alive message
+                        console.log(packetargs.length);
+                        if(packetargs.length === 0){
+                            livetouches = {};
+                            return;
+                        }
+                        /*
+                        var packetargsvalues = []; // create an array of strings of touch indices
+                        for( var i = 0; i < packetargs.length; i++){
+                            packetargsvalues[i] = packetargs[i].value;
+                        }
+                        console.log(packetargsvalues);
+
+                        var livetouchesarray = Object.keys(livetouches);
+                        console.log(livetouchesarray);
+                        for(var i = 0; i < livetouchesarray.length; i++){
+                            if( packetargsvalues.includes(livetouchesarray[i]) ){
+                                console.log("found it");
+                            }else{
+                                console.log("not found " + packet.arg[i].value);
+                                livemessages[ livetouchesarray[i] ] = undefined;
+
+                            }
+                        }                 
+                        */
+
+
+                        //for( var i = 0; i < Object.keys(livetouches).length; i++){
+                        Object.keys(livetouches).forEach(function(key, i){
+                            for (var j = 0; j < packetargs.length; j++){
+                                if( parseInt(key)  === packetargs[j].value ){
+                                    console.log("foundit");
+                                    break;
+                                }
+                                console.log("not found" + key);
+                                delete livetouches[key];
+                            } 
+                        });
+                    }
+                } 
+            };
+
         </script>
         <script>
             var mintsynth = flock.synth({
@@ -199,7 +313,7 @@
        
             document.getElementById('myRange').onchange = function(){
                 basssynth.set("thing.freq", this.value/10);
-                console.log(basssynth.get("thing.freq"));
+                //console.log(basssynth.get("thing.freq"));
             }
         
         </script>
