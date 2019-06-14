@@ -18,14 +18,14 @@
                 margin: 0;
             }
             #meter{
+                box-sizing: border-box; 
                 position: fixed;
                 bottom: 0;
                 left: 0;
-                margin: 5px;
-                border: 1px solid grey;
-                border-radius: 5px;
-                width: 99%; //fallback
-                width: 99vw;
+                border: 3px solid grey;
+                border-radius: 15px;
+                width: 100%; //fallback
+                width: 100vw;
                 height: 75px;
             }
         </style>
@@ -91,7 +91,17 @@
             */
 
         function arraytomapping(touches){
-            Object.keys(livetouches).forEach(function(key, i){
+            if (basssynth.isPlaying()){ 
+                Object.keys(touches).forEach(function(key, i){
+                    basssynth.set("thing.freq", touches[key][0]*10 + 0.01);
+                    basssynth.set("thing.mul", touches[key][1]);
+                    basssynth.set("mod.add", touches[key][1]*10 + 90);
+                    mintsynth.set("thing" + (i+1) + ".mul", 0);
+                });
+                return;
+            };
+
+            Object.keys(touches).forEach(function(key, i){
                 // range of 0.01 to 0.2 is pretty great
                 if (i === 0){
                     mintsynth.set("granny.grainDur", touches[key][0] / 5 + 0.01);
@@ -142,7 +152,8 @@
         </script>
         <script>
             //https://stackoverflow.com/questions/36011249/detect-hold-mouse-click-in-javascript
-            window.addEventListener('mousedown', function() {
+            window.addEventListener('mousedown', function(e) {
+                //console.log(e.button);
                 mouseIsDown = true;
                 setTimeout(function() {
                     if(mouseIsDown) {
@@ -160,8 +171,18 @@
                   mouseIsDown = false;
             });
 
+            // nice implementation to add an event after scrolling stops
+            // https://stackoverflow.com/a/37951069/1945902
+            var _scrollTimeout = null;
             window.addEventListener('wheel', function(e){
-                console.log(e);
+                var wheelnode = document.getElementById("wheeltarget");
+                var wheeldata = [e.deltaX, e.deltaY, e.deltaZ]
+                wheelnode.innerHTML = fluid.prettyPrintJSON( wheeldata );
+
+                clearTimeout(_scrollTimeout);
+                _scrollTimeout = setTimeout(function() {
+                    wheelnode.innerHTML = '';
+                }, 250);
             });
         </script>
 
@@ -202,10 +223,11 @@
             };
         </script>
 
+        <h2>ScrollWheel</h2>
+        <div id="wheeltarget"></div>
         <h2>OSC</h2>
         <div id="osctarget"></div>
         <canvas id="meter"></canvas>
-
 
         <script>
             var mintsynth = flock.synth({
@@ -277,11 +299,14 @@
                         ugen: "flock.ugen.sin",
                         rate: "control",
                         id: "thing",
+                        mul: 1,
                         freq: 0.1 /// change this value!
+
                     },
                     source: {
                         ugen: "flock.ugen.saw",
                         freq: {
+                            id: "mod",
                             ugen: "flock.ugen.square",
                             mul: {
                                 ugen: "flock.ugen.sin",
