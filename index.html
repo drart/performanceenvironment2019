@@ -2,7 +2,7 @@
     <head>
         <script src="lib/osc/dist/osc-browser.min.js"></script>
         <script src="lib/flocking/dist/flocking-all.js"></script>
-        <script src="lib/artlib/adam.js"></script>
+        <!--script src="lib/artlib/adam.js"></script-->
         <!--script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.16/p5.js"></script-->
 
         <script>
@@ -30,7 +30,8 @@
             }
         </style>
     </head>
-    <body>
+    <!-- prevent the contextual menu on right click-->
+    <body oncontextmenu="return false;">
         <script>
         var livetouches = {}; // put all touches in here
 
@@ -70,28 +71,8 @@
             }); 
         };
 
-
-            /*
-            function TUIOsetMessageToHTML(packet){
-                if (packet.address === "/tuio/2Dcur"){
-                    if (packet.args[0].value === "set"){
-                        var touchdiv =  document.getElementById( packet.args[1].value );
-                        if(touchdiv === null){
-                            var newaddress = document.createElement("div");
-                            newaddress.id = packet.args[1].value;
-                            newaddress.innerHTML = fluid.prettyPrintJSON(packet);
-                            var recenttouch = document.getElementById("osctarget").firstChild;
-                            document.getElementById("osctarget").insertBefore(newaddress, recenttouch);
-                        } else{
-                           touchdiv.innerHTML = fluid.prettyPrintJSON(packet);
-                        }
-                    }
-                }
-            };
-            */
-
         function arraytomapping(touches){
-            if (basssynth.isPlaying()){ 
+            if ( basssynthplaying ){ 
                 Object.keys(touches).forEach(function(key, i){
                     basssynth.set("thing.freq", touches[key][0]*10 + 0.01);
                     basssynth.set("thing.mul", touches[key][1]);
@@ -99,6 +80,16 @@
                     mintsynth.set("thing" + (i+1) + ".mul", 0);
                 });
                 return;
+            };
+
+            if( gransynthplaying ){
+                Object.keys(touches).forEach(function(key, i){
+                    gransynth.set("granny.numGrains", touches[key][0]*50 );
+                    gransynth.set("granny.grainDur", touches[key][1] + 0.01);
+                    mintsynth.set("thing" + (i+1) + ".mul", 0);
+                    //console.log(touches[key]);
+                });
+                return; 
             };
 
             Object.keys(touches).forEach(function(key, i){
@@ -109,7 +100,7 @@
                 mintsynth.set("thing" + (i+1) + ".freq", touches[key][1] * 300 + 1);
                 mintsynth.set("thing" + (i+1) + ".mul", 0.4);
             });
-            if(Object.keys(touches).length < 5){
+            if (Object.keys(touches).length < 5){
                 for (var j = Object.keys(touches).length; j < 5; j++){
                     if (j < 5){
                         mintsynth.set("thing" + (j+1) + ".mul", 0);
@@ -118,53 +109,72 @@
             }
         };
 
-            function TUIOmessagesToObject(packet){
-                if (packet.address === "/tuio/2Dcur"){
-                    if (packet.args[0].value === "set"){
-                        livetouches[ packet.args[1].value ] = [ packet.args[2].value, packet.args[3].value ];
-                    }
+        function TUIOmessagesToObject(packet){
+            if (packet.address === "/tuio/2Dcur"){
+                if (packet.args[0].value === "set"){
+                    livetouches[ packet.args[1].value ] = [ packet.args[2].value, packet.args[3].value ];
                 }
-            };
-            
-            function TUIOaliveToObject(packet){
-                if (packet.address === "/tuio/2Dcur"){
-                    if(packet.args[0].value === "alive"){
-                        var packetargs = packet.args;
-                        packetargs.shift(); // remove first element which is the alive message
-                        // if no touches are active then clear the toucharray
-                        if(packetargs.length === 0){
-                            livetouches = {};
-                            return;
-                        }
-                        // search all keys for current session id, if not found then delete it
-                        Object.keys(livetouches).forEach(function(key, i){
-                            for (var j = 0; j < packetargs.length; j++){
-                                if( parseInt(key)  === packetargs[j].value ){
-                                    return;
-                                }
-                            } 
-                            delete livetouches[key];
-                        });
+            }
+        };
+        
+        function TUIOaliveToObject(packet){
+            if (packet.address === "/tuio/2Dcur"){
+                if(packet.args[0].value === "alive"){
+                    var packetargs = packet.args;
+                    packetargs.shift(); // remove first element which is the alive message
+                    // if no touches are active then clear the toucharray
+                    if(packetargs.length === 0){
+                        livetouches = {};
+                        return;
                     }
-                } 
-            };
+                    // search all keys for current session id, if not found then delete it
+                    Object.keys(livetouches).forEach(function(key, i){
+                        for (var j = 0; j < packetargs.length; j++){
+                            if( parseInt(key)  === packetargs[j].value ){
+                                return;
+                            }
+                        } 
+                        delete livetouches[key];
+                    });
+                }
+            } 
+        };
 
         </script>
         <script>
+
+            var gransynthplaying = false;
+            var basssynthplaying = false;
+
             //https://stackoverflow.com/questions/36011249/detect-hold-mouse-click-in-javascript
             window.addEventListener('mousedown', function(e) {
                 //console.log(e.button);
                 mouseIsDown = true;
-                setTimeout(function() {
-                    if(mouseIsDown) {
-                        // mouse was held down for > 2 seconds
-                        if(basssynth.isPlaying()){
-                            basssynth.pause();
-                        }else{
-                            basssynth.play();
+                if (e.button === 2){
+                    setTimeout(function() {
+                        if(mouseIsDown) {
+                            // mouse was held down for > 2 seconds
+                            if(basssynthplaying){
+                                basssynth.noteOff();
+                            }else{
+                                basssynth.noteOn();
+                            }
+                            basssynthplaying = !basssynthplaying;
                         }
-                    }
-                }, 2000);
+                    }, 2000);
+                }else{
+                    setTimeout(function() {
+                        if(mouseIsDown) {
+                            // mouse was held down for > 2 seconds
+                            if(gransynthplaying){
+                                gransynth.noteOff();
+                            }else{
+                                gransynth.noteOn();
+                            }
+                            gransynthplaying = !gransynthplaying;
+                        }
+                    }, 2000);
+                }
             });
 
             window.addEventListener('mouseup', function() {
@@ -186,31 +196,14 @@
             });
         </script>
 
-        <input type="checkbox" id="sf1" name="sf1"><span id="sf1-label"></span>
+        <!--input type="checkbox" id="sf1" name="sf1"><span id="sf1-label"></span>
         <input type="range" min="1" max="100" value="50" class="slider" id="myRange">
         <input type="checkbox" id="sf2" name="sf2"><span id="sf2-label"></span>
         <input type="range" min="1" max="100" value="50" class="slider" id="myRange2">
         <input type="checkbox" id="sf3" name="sf3"><span id="sf3-label"></span>
         <input type="range" min="1" max="100" value="50" class="slider" id="myRange3">
         <input type="checkbox" id="sf4" name="sf4"><span id="sf4-label"></span>
-        <input type="range" min="1" max="100" value="50" class="slider" id="myRange4">
-        <script>
-            document.getElementById('sf1').onclick = function(){
-                if(this.checked){
-                    basssynth.play()
-                }else{
-                    basssynth.pause()
-                }
-            };
-       
-            document.getElementById('myRange').onchange = function(){
-                basssynth.set("thing.freq", this.value/10);
-                //console.log(basssynth.get("thing.freq"));
-            }
-        
-        </script>
-
-        <hr>
+        <input type="range" min="1" max="100" value="50" class="slider" id="myRange4"-->
 
         <input type="checkbox" id="starter" name="starter"><span >start audio</span>
         <script>
@@ -238,7 +231,7 @@
                         mix: 1, 
                         damp: 0.7,
                         room: 0.9,
-                        mul: 4,
+                        mul: 5,
                         source: {
                             ugen: "flock.ugen.granulator",
                             id: "granny",
@@ -295,6 +288,12 @@
             var basssynth = flock.synth({
                 synthDef: {
                     ugen: "flock.ugen.distortion.tarrabiaDeJong",
+                    mul: {
+                        ugen: "flock.ugen.asr",
+                        attack: 5,
+                        id: "env",
+                        gate: 0,
+                    },
                     amount: {
                         ugen: "flock.ugen.sin",
                         rate: "control",
@@ -318,7 +317,42 @@
                     }
                 }
             });
-            basssynth.pause();
+
+            var gransynth = flock.synth({
+                synthDef: {
+                    ugen: "flock.ugen.granulator",
+                    id: "granny",
+                    /*numGrains: {
+                        ugen: "flock.ugen.line",
+                        start: 1,
+                        end: 50,
+                        duration: 90
+                    },
+                    grainDur: {
+                        ugen: "flock.ugen.line",
+                        start: 0.1,
+                        end: 0.005,
+                        duration: 100
+                    },*/
+                    delayDur: 4,
+                    mul: {
+                        ugen: "flock.ugen.asr",
+                        id: "env",
+                        gate: 0,
+                    },
+                    source: {
+                        ugen: "flock.ugen.playBuffer",
+                        buffer: {
+                            id: "chord",
+                            url: "snd/C9drone.wav"
+                        },
+                        loop: 1,
+                        start: 0,
+
+                        end: 0.1
+                    }
+                }
+            });
 
         </script>
 
