@@ -184,9 +184,22 @@
             // nice implementation to add an event after scrolling stops
             // https://stackoverflow.com/a/37951069/1945902
             var _scrollTimeout = null;
+            var wheeldata = [0,0,0];
+
+            function wheeldataaccumulator(e){
+                wheeldata[0] += e.deltaX;
+                wheeldata[1] += e.deltaY;
+                wheeldata[2] += e.deltaZ;
+
+                wheeldata[0] = Math.min( 1000, Math.max(wheeldata[0], 0)); 
+                wheeldata[1] = Math.min( 1000, Math.max(wheeldata[1], 0)); 
+                wheeldata[2] = Math.min( 1000, Math.max(wheeldata[2], 0)); 
+            };
+
             window.addEventListener('wheel', function(e){
                 var wheelnode = document.getElementById("wheeltarget");
-                var wheeldata = [e.deltaX, e.deltaY, e.deltaZ]
+                //wheeldata = [e.deltaX, e.deltaY, e.deltaZ]
+                wheeldataaccumulator(e);
                 wheelnode.innerHTML = fluid.prettyPrintJSON( wheeldata );
 
                 clearTimeout(_scrollTimeout);
@@ -290,7 +303,8 @@
                     ugen: "flock.ugen.distortion.tarrabiaDeJong",
                     mul: {
                         ugen: "flock.ugen.asr",
-                        attack: 5,
+                        attack: 10,
+                        release: 5,
                         id: "env",
                         gate: 0,
                     },
@@ -338,6 +352,7 @@
                     mul: {
                         ugen: "flock.ugen.asr",
                         id: "env",
+                        release: 5,
                         gate: 0,
                     },
                     source: {
