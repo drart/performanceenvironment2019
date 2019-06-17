@@ -47,14 +47,14 @@
                 TUIOaliveToObject( bundle.packets[i] );
             }
             arraytomapping( livetouches );
-            touchArraytoDOM( livetouches );
+            //touchArraytoDOM( livetouches );
         });
 
         oscPort.on("message", function(msg){
             TUIOmessagesToObject( msg ); 
             TUIOaliveToObject( msg );
             arraytomapping( livetouches );
-            touchArraytoDOM( livetouches );
+            //touchArraytoDOM( livetouches );
         });
 
         function touchArraytoDOM(touches){
@@ -186,20 +186,24 @@
             var _scrollTimeout = null;
             var wheeldata = [0,0,0];
 
-            function wheeldataaccumulator(e){
-                wheeldata[0] += e.deltaX;
-                wheeldata[1] += e.deltaY;
-                wheeldata[2] += e.deltaZ;
+            function wheeldataaccumulator(x,y,z){
+                wheeldata[0] += x;
+                wheeldata[1] += y;
+                wheeldata[2] += z;
 
                 wheeldata[0] = Math.min( 1000, Math.max(wheeldata[0], 0)); 
                 wheeldata[1] = Math.min( 1000, Math.max(wheeldata[1], 0)); 
                 wheeldata[2] = Math.min( 1000, Math.max(wheeldata[2], 0)); 
+
+
+                gransynth.set ("granny.delayDur", wheeldata[0]/100 + 0.4);
+                gransynth.set ("granny.source.end", wheeldata[1]/1100 + 0.1);
             };
 
             window.addEventListener('wheel', function(e){
                 var wheelnode = document.getElementById("wheeltarget");
                 //wheeldata = [e.deltaX, e.deltaY, e.deltaZ]
-                wheeldataaccumulator(e);
+                wheeldataaccumulator(e.deltaX, e.deltaY, e.deltaZ);
                 wheelnode.innerHTML = fluid.prettyPrintJSON( wheeldata );
 
                 clearTimeout(_scrollTimeout);
@@ -287,7 +291,7 @@
                                 ],
                             }
                         }
-                    },
+                    } ,
                     options: {
                         canvas: "#meter",
                         styles: {
