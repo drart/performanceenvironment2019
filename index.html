@@ -311,6 +311,7 @@
                         release: 5,
                         id: "env",
                         gate: 0,
+                        mul: 0.35
                     },
                     amount: {
                         ugen: "flock.ugen.sin",
@@ -366,6 +367,7 @@
                             url: "snd/C9drone.wav"
                         },
                         loop: 1,
+                        mul: 2,
                         start: 0,
 
                         end: 0.1
@@ -375,6 +377,8 @@
 
         </script>
 
+        <script src="midicontrollers.js"></script>
+        <script src="performancemappings.js"></script>
         <script> 
             flock.enviro.shared.play();
         </script>
