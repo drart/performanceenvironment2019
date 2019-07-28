@@ -62,7 +62,7 @@ fluid.defaults("adam.midi.domlog", {
 });
 
 adam.midi.domlog.ready = function(that){
-    if (document.getElementById("midi-display" === null)){
+    if (document.getElementById("midi-display") === null){
         console.log("midi display dom element does not exist");
     }
     that.options.domElement = $("<div/>");
@@ -110,6 +110,9 @@ fluid.defaults("adam.midi.bcr2000", {
 });
 
 fluid.defaults("adam.midi.push", {
+    // ------------------
+    // midi setup
+    // ------------------
     gradeNames: "flock.midi.connection",
     sysex: true,
     openImmediately: true,
@@ -121,7 +124,18 @@ fluid.defaults("adam.midi.push", {
             name : "Ableton Push User Port"
         }
     },
+    // ------------------
+    // infusion setup
+    // ------------------
+    model : {
+        lcdLine1 : "", // not used yet, add a change applier that does this automatically?
+        lcdLine2 : "",
+        lcdLine3 : "",
+        lcdLine4 : "",
+    },
     invokers: {
+        //knobTouched: {},
+        //knobReleased: {},
         clearLine: {
             func: function (that, l = 0){
                 if (l < 4)
@@ -137,50 +151,79 @@ fluid.defaults("adam.midi.push", {
                 that.clearLine(4)
             },
             args: ["{that}"]
+        },
+        // 240,71,127,21,<24+line(0-3)>,0,<Nchars+1>,<Offset>,<Chars>,247
+        // 240,71,127,21,25,0,13,4,"Hello World",247
+        writeLCD: {
+            func: function(that, thestring="test", line = 0, offset = 0 ){
+                var thestringinascii = []; 
+                for(var i = 0; i < thestring.length; i++){
+                    thestringinascii[i] = thestring.charCodeAt(i);
+                }
+                mysysexmessage = [240, 71, 127, 21];
+                mysysexmessage.push(24 + line, 0);
+                mysysexmessage.push(thestring.length + 1, offset);
+                mysysexmessage.push(...thestringinascii);
+                mysysexmessage.push(247);
+                that.sendRaw( mysysexmessage );
+                return(mysysexmessage);
+            },
+            args: ["{that}", "{arguments}.0", "{arguments}.1", "{arguments}.2"]
         }
     },
     listeners : {
         onReady: {
             func: function(that){
-                setTimeout( function(){
-                    that.clearLCD()
-                    that.sendRaw([176, 85, 1]); // dim play light 
+                //setTimeout( function(){// do I really need the delay anymore?
+                    that.clearLCD();
+                    that.writeLCD("Made by Ableton", 1, 27);
+                    that.writeLCD("Powered by Flocking.js", 2, 24);
+                    var midimessage = {type: "noteOn", channel: 0, note: 36, velocity: 100}
+                    for (var i = 36; i < 100; i++){
+                        midimessage.note = i;
+                        that.send(midimessage); // set up buttons
+                    }
+                    var midimessage = {type: "control", channel: 0, number: 36, value: 100}
+                    for(var i = 85; i < 91; i++){
+                        midimessage.number = i;
+                        midimessage.value = 1;
+                        that.send(midimessage)
+                    }
+                    for(var i = 102; i < 120; i++){
+                        midimessage.number= i;
+                        that.send(midimessage)
+                    }
+                    for(var i = 19; i < 30; i++){
+                        midimessage.number= i;
+                        that.send(midimessage)
+                    }
+                    for(var i = 36; i < 64; i++){
+                        midimessage.number= i;
+                        that.send(midimessage)
+                    }
+                    midimessage.number = 9;
+                    that.send(midimessage)
+                    midimessage.number = 3;
+                    that.send(midimessage)
                     /*that.send([176, 50, 1]); // dim play light 
                     that.send([176, 51, 1]); // dim play light 
                     that.send([176, 114, 1]); // dim play light 
                     that.send([176, 115, 1]); // dim play light 
-                    for (var i = 36; i < 100; i++){
-                        that.send([144, i, 100]); 
-                    }*/
-                }, 1000);
+                    */
+                //}, 1000);
             
             },
             args: ["{that}"]
-        }
-    
+        },
+        noteOn : function(msg){},
+        control: function(msg){
+            if(msg.number === 71){
+                console.log("knobbbby");
+            }
+        }, 
+        aftertouch: function(msg){}
     }
 });
-
-
-
-// ---------------------------------
-// SETUP PUSH LIGHTS
-// ---------------------------------
-/* TODO - start by clearing them all */
-/*
-(function(){
-    setTimeout( function(){
-        abletonpush.send([176, 85, 1]); // dim play light 
-        abletonpush.send([176, 50, 1]); // dim play light 
-        abletonpush.send([176, 51, 1]); // dim play light 
-        abletonpush.send([176, 114, 1]); // dim play light 
-        abletonpush.send([176, 115, 1]); // dim play light 
-        for (var i = 36; i < 100; i++){
-            abletonpush.send([144, i, 100]); // dim play light 
-        }
-    }, 1000);
-})();
-*/
 
 
 

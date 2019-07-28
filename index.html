@@ -2,7 +2,7 @@
     <head>
         <script src="lib/osc/dist/osc-browser.min.js"></script>
         <script src="lib/flocking/dist/flocking-all.js"></script>
-        <!--script src="lib/artlib/adam.js"></script-->
+        <script src="lib/artlib/adam.js"></script>
         <!--script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.16/p5.js"></script-->
 
         <script>
@@ -380,6 +380,9 @@
         <script src="midicontrollers.js"></script>
         <script src="performancemappings.js"></script>
         <script> 
+            //adam.june2018(); 
+            abletonpush  = adam.midi.push.july2019(); // load controller mapping
+            july2019(); // load synths 
             flock.enviro.shared.play();
         </script>
     </body>

@@ -4,10 +4,9 @@
 
 
 fluid.defaults("adam.midi.push.july2019", {
-    gradeNames: ["adam.midi.push", "adam.midi.domlog"],
+    gradeNames: ["adam.midi.push", "adam.midi.domlog", "adam.midi.console"],
     listeners:{ 
         noteOn: function (msg) {
-            console.log(msg);
             /*if (msg.note >= 68 && msg.note <= 83){
                 octopus.set("bop.freq.add", flock.midiFreq(msg.note));        
                 octopus.set("bop.mul.gate", 1);
@@ -18,7 +17,6 @@ fluid.defaults("adam.midi.push.july2019", {
         },
         control: function (msg) {
             if(msg.number <  10) {
-                console.log(msg);
                 //octopus.set("f"+(msg.number+1)+".mul", msg.value/ 127);
             }
         }
@@ -113,13 +111,15 @@ fluid.defaults("adam.midi.bcr2000", {
 
 function july2019(){
     if(window !== undefined){
+        window.gs = adam.glitchseq();
         window.octopus = adam.octopus();
         //window.sc = adam.stereoclick();
         //window.dv = adam.dustyverb();
         //window.qc = adam.quadclick();
-        qc.pause();
-        sc.pause();
-        dv.pause();
+        gs.pause();
+        //qc.pause();
+        //sc.pause();
+        //dv.pause();
     }
 }
 
