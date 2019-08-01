@@ -23,6 +23,7 @@ fluid.defaults("adam.midi.console", {
 
 fluid.defaults("adam.midi.domlog", {
     model: {
+        anchor: null,
         domElement: null
     }, 
     invokers: {
@@ -99,6 +100,56 @@ fluid.defaults("adam.midi.boppad", {
     }
 });
 
+// write a basic MPE decoder and have it pair with a flock.band?
+fluid.defaults("adam.midi.seaboard", {
+    gradeNames: "flock.midi.connection",
+    openImmediately: true,
+    ports: {
+        input: {
+            name: "Seaboard BLOCK"
+        }
+    },
+    model: {
+        activevoices: []
+    },
+    listeners: {
+        noteOn: {
+            func: function(that, msg){
+                that.options.model.activevoices[msg.channel] = msg;
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        noteOff: {
+            func: function(that,msg){
+                that.options.model.activevoices[msg.channel] = undefined;
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        pitchbend: {
+            func: function(that,msg){
+                if(that.options.model.activevoices[msg.channel] !== undefined)
+                    that.options.model.activevoices[msg.channel].pitchbend = msg.value;
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        control: {
+            func: function(that,msg){
+                if(that.options.model.activevoices[msg.channel] !== undefined)
+                    that.options.model.activevoices[msg.channel].control = msg.value;
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        aftertouch: {
+            func: function(that,msg){
+                if(that.options.model.activevoices[msg.channel] !== undefined)
+                    that.options.model.activevoices[msg.channel].aftertouch = msg.pressure;
+                console.log(that.options.model.activevoices[msg.channel]);
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+    }
+});
+
 fluid.defaults("adam.midi.bcr2000", {
     gradeNames: "flock.midi.connection",
     openImmediately: true,
@@ -109,6 +160,9 @@ fluid.defaults("adam.midi.bcr2000", {
     }
 });
 
+// TODO
+// modelize the knobs? val, min, max, inc, stringprepend, stringappend -> pair with the screen?
+//
 fluid.defaults("adam.midi.push", {
     // ------------------
     // midi setup
@@ -132,6 +186,17 @@ fluid.defaults("adam.midi.push", {
         lcdLine2 : "",
         lcdLine3 : "",
         lcdLine4 : "",
+        tempoknob: 100,
+        swingknob: 100,
+        knob1: 100, // change this to an object in the future?
+        knob2: 100,
+        knob3: 100,
+        knob4: 100,
+        knob5: 100,
+        knob6: 100,
+        knob7: 100,
+        knob8: 100,
+        volknob: 100,
     },
     invokers: {
         //knobTouched: {},
@@ -142,6 +207,19 @@ fluid.defaults("adam.midi.push", {
                     that.sendRaw([240,71,127,21,28+l,0,0,247]); // 
             },
             args: ["{that}", "{arguments}.0"]
+        },
+        writeLCDRegion: {
+            func: function (that, thestring, length, line, region){
+                if(typeof thestring != "string"){
+                    thestring = thestring.toString();
+                }
+                if(typeof region != "number"){
+                    region = 1;
+                }
+                thestring = thestring.padEnd(length);
+                that.writeLCD(thestring, line, ((region-1) * 8) + Math.floor(region/2));
+            },
+            args: ["{that}", "{arguments}.0", "{arguments}.1", "{arguments}.2", "{arguments}.3"]
         },
         clearLCD: {
             func: function(that){
@@ -157,6 +235,9 @@ fluid.defaults("adam.midi.push", {
         writeLCD: {
             func: function(that, thestring="test", line = 0, offset = 0 ){
                 var thestringinascii = []; 
+                if(typeof thestring != "string"){
+                    thestring = thestring.toString();
+                }
                 for(var i = 0; i < thestring.length; i++){
                     thestringinascii[i] = thestring.charCodeAt(i);
                 }
@@ -174,10 +255,18 @@ fluid.defaults("adam.midi.push", {
     listeners : {
         onReady: {
             func: function(that){
-                //setTimeout( function(){// do I really need the delay anymore?
                     that.clearLCD();
                     that.writeLCD("Made by Ableton", 1, 27);
                     that.writeLCD("Powered by Flocking.js", 2, 24);
+                    that.writeLCDRegion(that.options.model.knob1, 8, 0, 0);
+                    that.writeLCDRegion(that.options.model.knob2, 8, 0, 9);
+                    that.writeLCDRegion(that.options.model.knob3, 8, 0, 17);
+                    that.writeLCDRegion(that.options.model.knob4, 8, 0, 25);
+                    that.writeLCDRegion(that.options.model.knob5, 8, 0, 34);
+                    that.writeLCDRegion(that.options.model.knob6, 8, 0, 43);
+                    that.writeLCDRegion(that.options.model.knob7, 8, 0, 51);
+                    that.writeLCDRegion(that.options.model.knob8, 8, 0, 60);
+
                     var midimessage = {type: "noteOn", channel: 0, note: 36, velocity: 100}
                     for (var i = 36; i < 100; i++){
                         midimessage.note = i;
@@ -210,28 +299,106 @@ fluid.defaults("adam.midi.push", {
                     that.send([176, 114, 1]); // dim play light 
                     that.send([176, 115, 1]); // dim play light 
                     */
-                //}, 1000);
-            
             },
             args: ["{that}"]
         },
-        noteOn : function(msg){},
-        control: function(msg){
-            if(msg.number === 71){
-                console.log("knobbbby");
-            }
-        }, 
+        noteOn : function(msg){
+            if (msg.note < 20){
+               // knobs touched 
+               // emit knob touched?
+            }else{
+                var notenumber = msg.note;
+                var row = Math.floor((notenumber - 36) / 8);
+                var column = (notenumber-36) % 8;
+                // emit pad pushed? 
+                console.log(row, column); 
+            } 
+        },
+        control: {
+            func: function(that, msg){
+                if(msg.number === 71){
+                    if (msg.value > 64){
+                        that.options.model.knob1 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob1 += msg.value;
+                    }
+                    that.options.model.knob1 = adam.clamp(that.options.model.knob1, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob1, 8, 0, 0);
+                    //gs.setProb(that.options.model.knob1 / 100, 0);
+                }
+                if(msg.number === 72){
+                    if (msg.value > 64){
+                        that.options.model.knob2 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob2 += msg.value;
+                    }
+                    that.options.model.knob2 = adam.clamp(that.options.model.knob2, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob2, 8, 0, 9);
+                    //gs.setProb(that.options.model.knob2 / 100, 1);
+                }
+                if(msg.number === 73){
+                    if (msg.value > 64){
+                        that.options.model.knob3 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob3 += msg.value;
+                    }
+                    that.options.model.knob3 = adam.clamp(that.options.model.knob3, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob3, 8, 0, 17);
+                    //gs.setProb(that.options.model.knob3 / 100, 2);
+                }
+                if(msg.number === 74){
+                    if (msg.value > 64){
+                        that.options.model.knob4 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob4 += msg.value;
+                    }
+                    that.options.model.knob4 = adam.clamp(that.options.model.knob4, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob4, 8, 0, 25);
+                    //gs.setProb(that.options.model.knob4 / 100, 3);
+                }
+                if(msg.number === 75){
+                    if (msg.value > 64){
+                        that.options.model.knob5 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob5 += msg.value;
+                    }
+                    that.options.model.knob5 = adam.clamp(that.options.model.knob5, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob5, 8, 0, 34);
+                    //gs.setProb(that.options.model.knob5 / 100, 4);
+                }
+                if(msg.number === 76){
+                    if (msg.value > 64){
+                        that.options.model.knob6 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob6 += msg.value;
+                    }
+                    that.options.model.knob6 = adam.clamp(that.options.model.knob6, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob6, 8, 0, 43);
+                    //gs.setProb(that.options.model.knob6 / 100, 5);
+                }
+                if(msg.number === 77){
+                    if (msg.value > 64){
+                        that.options.model.knob7 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob7 += msg.value;
+                    }
+                    that.options.model.knob7 = adam.clamp(that.options.model.knob7, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob7, 8, 0, 51);
+                    //gs.setProb(that.options.model.knob7 / 100, 6);
+                }
+                if(msg.number === 78){
+                    if (msg.value > 64){
+                        that.options.model.knob8 -= (128-msg.value);
+                    }else{
+                        that.options.model.knob8 += msg.value;
+                    }
+                    that.options.model.knob8 = adam.clamp(that.options.model.knob8, 0, 100);
+                    //that.writeLCDRegion(that.options.model.knob8, 8, 0, 60);
+                    //gs.setProb(that.options.model.knob8 / 100, 7);
+                }
+            }, 
+            args: ["{that}", "{arguments}.0"]
+        },
         aftertouch: function(msg){}
     }
 });
-
-
-
-
-/*
- *  better way of sending and building messages. 
-ableton.send({
-    type: “sysex”,
-    data: [71,127,21,28,0,0]
-});
-        */

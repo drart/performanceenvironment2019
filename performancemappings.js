@@ -6,19 +6,62 @@
 fluid.defaults("adam.midi.push.july2019", {
     gradeNames: ["adam.midi.push", "adam.midi.domlog", "adam.midi.console"],
     listeners:{ 
+        onReady: {
+            func: function (that){
+                console.log("performance mapping loaded");
+                for(var i = 0; i < 8; i++){
+                    that.writeLCDRegion(that.options.model["knob" + knob], 8, 0, knob);
+                }
+            },
+            args: ["{that}"]
+        },
         noteOn: function (msg) {
-            /*if (msg.note >= 68 && msg.note <= 83){
-                octopus.set("bop.freq.add", flock.midiFreq(msg.note));        
-                octopus.set("bop.mul.gate", 1);
+            if (msg.note >= 35 && msg.note <= 100){
+                //octopus.set("bop.freq.add", flock.midiFreq(msg.note));        
+                //octopus.set("bop.mul.gate", 1);
             }
-            */
+        },
+        noteOff: function (msg) {
+        },
+        control: {
+            func: function (that, msg) {
+            if(msg.number=== 85 && msg.value === 127){
+                console.log(gs.isPlaying());
+                var mymessage = {type: "control", channel: 0, number: 85, value: 1};
+                if( gs.isPlaying() ){
+                    gs.pause();
+
+                    that.send(mymessage);
+                }else{
+                    gs.play();
+
+                    mymessage.value = 127;
+                    that.send(mymessage);
+                }
+            }
+            // the knobs
+            if(msg.number >  70 && msg.number < 79) {
+                var knob = msg.number - 70;
+                that.writeLCDRegion(that.options.model["knob" + knob], 8, 0, knob);
+                gs.setProb(that.options.model["knob" + knob]  / 100, 0);
+            }
+            },
+            args: ["{that}", "{arguments}.0"]
+        }
+    },
+    invokers: {},
+    modelListeners: {}
+});
+
+
+fluid.defaults("adam.midi.seaboard.july2019", {
+    gradeNames: ["adam.midi.seaboard", "adam.midi.domlog", ],
+    listeners:{ 
+        noteOn: function (msg) {
         },
         noteOff: function (msg) {
         },
         control: function (msg) {
-            if(msg.number <  10) {
-                //octopus.set("f"+(msg.number+1)+".mul", msg.value/ 127);
-            }
         }
     }
 });
@@ -111,6 +154,8 @@ fluid.defaults("adam.midi.bcr2000", {
 
 function july2019(){
     if(window !== undefined){
+        window.abletonpush  = adam.midi.push.july2019(); // load controller mapping
+        window.seaboard  = adam.midi.seaboard.july2019(); // load controller mapping
         window.gs = adam.glitchseq();
         window.octopus = adam.octopus();
         //window.sc = adam.stereoclick();
