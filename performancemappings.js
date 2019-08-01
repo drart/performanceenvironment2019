@@ -8,9 +8,8 @@ fluid.defaults("adam.midi.push.july2019", {
     listeners:{ 
         onReady: {
             func: function (that){
-                console.log("performance mapping loaded");
-                for(var i = 0; i < 8; i++){
-                    that.writeLCDRegion(that.options.model["knob" + knob], 8, 0, knob);
+                for(var i = 1; i < 9; i++){
+                    that.writeLCDRegion(that.options.model["knob" + i], 8, 0, i);
                 }
             },
             args: ["{that}"]
