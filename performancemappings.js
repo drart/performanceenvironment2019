@@ -11,13 +11,17 @@ fluid.defaults("adam.midi.push.july2019", {
                 for(var i = 1; i < 9; i++){
                     that.writeLCDRegion(that.options.model["knob" + i], 8, 0, i);
                 }
+                window.gs = adam.glitchseq();
+                gs.pause();
+                window.octopus = adam.octopus();
             },
             args: ["{that}"]
         },
         noteOn: function (msg) {
             if (msg.note >= 35 && msg.note <= 100){
-                //octopus.set("bop.freq.add", flock.midiFreq(msg.note));        
-                //octopus.set("bop.mul.gate", 1);
+                // bad start
+                octopus.set("f1.freq", flock.midiFreq(msg.note));        
+                octopus.set("f1.mul", 1);
             }
         },
         noteOff: function (msg) {
@@ -155,12 +159,9 @@ function july2019(){
     if(window !== undefined){
         window.abletonpush  = adam.midi.push.july2019(); // load controller mapping
         window.seaboard  = adam.midi.seaboard.july2019(); // load controller mapping
-        window.gs = adam.glitchseq();
-        window.octopus = adam.octopus();
         //window.sc = adam.stereoclick();
         //window.dv = adam.dustyverb();
         //window.qc = adam.quadclick();
-        gs.pause();
         //qc.pause();
         //sc.pause();
         //dv.pause();

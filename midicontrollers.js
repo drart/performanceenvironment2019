@@ -293,79 +293,21 @@ fluid.defaults("adam.midi.push", {
             if (msg.note < 20){
                // knobs touched 
                // emit knob touched?
+               // that.knobTouched.fire(msg.note);
             }else{
                 var notenumber = msg.note;
                 var row = Math.floor((notenumber - 36) / 8);
                 var column = (notenumber-36) % 8;
                 //console.log(row, column); 
                 // emit pad pushed? 
+                // that.padPushed.fire(x,y);
             } 
         },
         control: {
             func: function(that, msg){
-                if(msg.number === 71){
-                    if (msg.value > 64){
-                        that.options.model.knob1 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob1 += msg.value;
-                    }
-                    that.options.model.knob1 = adam.clamp(that.options.model.knob1, 0, 100);
-                }
-                if(msg.number === 72){
-                    if (msg.value > 64){
-                        that.options.model.knob2 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob2 += msg.value;
-                    }
-                    that.options.model.knob2 = adam.clamp(that.options.model.knob2, 0, 100);
-                }
-                if(msg.number === 73){
-                    if (msg.value > 64){
-                        that.options.model.knob3 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob3 += msg.value;
-                    }
-                    that.options.model.knob3 = adam.clamp(that.options.model.knob3, 0, 100);
-                }
-                if(msg.number === 74){
-                    if (msg.value > 64){
-                        that.options.model.knob4 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob4 += msg.value;
-                    }
-                    that.options.model.knob4 = adam.clamp(that.options.model.knob4, 0, 100);
-                }
-                if(msg.number === 75){
-                    if (msg.value > 64){
-                        that.options.model.knob5 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob5 += msg.value;
-                    }
-                    that.options.model.knob5 = adam.clamp(that.options.model.knob5, 0, 100);
-                }
-                if(msg.number === 76){
-                    if (msg.value > 64){
-                        that.options.model.knob6 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob6 += msg.value;
-                    }
-                    that.options.model.knob6 = adam.clamp(that.options.model.knob6, 0, 100);
-                }
-                if(msg.number === 77){
-                    if (msg.value > 64){
-                        that.options.model.knob7 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob7 += msg.value;
-                    }
-                    that.options.model.knob7 = adam.clamp(that.options.model.knob7, 0, 100);
-                }
-                if(msg.number === 78){
-                    if (msg.value > 64){
-                        that.options.model.knob8 -= (128-msg.value);
-                    }else{
-                        that.options.model.knob8 += msg.value;
-                    }
-                    that.options.model.knob8 = adam.clamp(that.options.model.knob8, 0, 100);
+                if (msg.number > 70 && msg.number < 79){
+                    that.options.model["knob" + (msg.number-70)] += msg.value > 64 ?  -(128-msg.value) : msg.value;
+                    that.options.model["knob" + (msg.number-70)] = adam.clamp( that.options.model["knob" + (msg.number-70)], 0, 100 );
                 }
             }, 
             args: ["{that}", "{arguments}.0"]
