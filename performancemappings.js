@@ -254,7 +254,9 @@ fluid.defaults("adam.quadclick", {
 });
 
 
-var playdrone = flock.synth({
+
+fluid.defaults("adam.sampler.playdrone", {
+    gradeNames: ["flock.synth"],
     synthDef:{
         ugen: "flock.ugen.playBuffer",
         id: "sample",
@@ -270,11 +272,11 @@ var playdrone = flock.synth({
     }
 });
 
-playdrone.myplay = function(){ 
+adam.sampler.playdrone.myplay = function(){ 
     playdrone.set("sample.trigger.source", 1)
 };
 
-playdrone.ripple = function(){
+adam.sampler.playdrone.ripple = function(){
     playdrone.set("sample.mul", {
         ugen: "flock.ugen.squareOsc", 
         add: 0.5,
@@ -284,9 +286,8 @@ playdrone.ripple = function(){
 };
 
 
-
-
-var fourdrone = flock.synth({
+fluid.defaults("adam.sampler.fourdrone", {
+    gradeNames: ["flock.synth"],
     synthDef:[
     {
         ugen: "flock.ugen.playBuffer",
