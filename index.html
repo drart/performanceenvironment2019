@@ -1,5 +1,7 @@
 <html>
     <head>
+        <link rel="shortcut icon" href="#" />
+
         <script src="lib/osc/dist/osc-browser.min.js"></script>
         <script src="lib/flocking/dist/flocking-all.js"></script>
         <script src="lib/artlib/adam.js"></script>
@@ -8,7 +10,7 @@
         <script>
             flock.init({
                 //chans:4, 
-                bufferSize: 256
+                bufferSize: 256 // lowest that chrome allows
             });
             var as = flock.environment.audioSystem;
         </script>
@@ -35,7 +37,9 @@
         <script>
             document.getElementById('starter').onclick= function(){
                 if (this.checked){
-                    flock.webAudio.audioSystem.audioContextSingleton.resume();
+                    flock.enviro.shared.play();
+                    /// useful for chrome and their gesture policy
+                    //flock.webAudio.audioSystem.audioContextSingleton.resume();
                 }else{
                     flock.enviro.shared.stop();
                 }
@@ -47,15 +51,16 @@
         <h2>OSC</h2>
         <div id="osctarget"></div>
         <h2>MIDI</h2>
-        <div id=“miditarget”></div>
+        <div id="midi-display"></div>
         <canvas id="meter"></canvas>
 
+        <!-- load midi interfaces -->
         <script src="midicontrollers.js"></script>
+        <!-- load midi mappings -->
         <script src="performancemappings.js"></script>
+        <!-- select a mapping -->
         <script> 
-            //adam.june2018(); 
-            july2019(); // load synths 
-            flock.enviro.shared.play();
+            august2019(); 
         </script>
     </body>
 </html>

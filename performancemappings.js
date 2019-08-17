@@ -2,6 +2,87 @@
 //  Controller Mappings
 /////////////////////////////////////////////
 
+fluid.defaults("adam.midi.push.august2019", {
+    gradeNames: ["adam.midi.push", "adam.midi.domlog", "adam.midi.console"],
+    listeners:{ 
+        onReady: {
+            func: function (that){
+                for(var i = 1; i < 9; i++){
+                    that.writeLCDRegion(that.options.model["knob" + i], 8, 0, i);
+                }
+            },
+            args: ["{that}"]
+        },
+        noteOn: function (msg) {
+            /*if (msg.note >= 35 && msg.note <= 100){
+                // bad start
+                //octopus.set("f1.freq", flock.midiFreq(msg.note));        
+                //octopus.set("f1.mul", 1);
+            }
+            */
+            switch (msg.note){
+                case 36:     
+                    sample1.noteOn(msg.velocity/127);
+                    break;
+                case 37:     
+                    sample2.noteOn(msg.velocity/127);
+                    break;
+                case 38:     
+                    sample3.noteOn(msg.velocity/127);
+                    break;
+                case 39:     
+                    sample4.noteOn(msg.velocity/127);
+                    break;
+                case 40:     
+                    sample5.noteOn(msg.velocity/127);
+                    break;
+                case 41:     
+                    sample6.noteOn(msg.velocity/127);
+                    break;
+                case 42:     
+                    sample7.noteOn(msg.velocity/127);
+                    break;
+                case 43:     
+                    sample8.noteOn(msg.velocity/127);
+                    break;
+                default: 
+                    break;
+            }
+        },
+        noteOff: function (msg) {
+                //octopus.set("f1.mul", 0);
+        },
+        control: {
+            func: function (that, msg) {
+            if(msg.number=== 85 && msg.value === 127){
+                console.log(gs.isPlaying());
+                var mymessage = {type: "control", channel: 0, number: 85, value: 1};
+                if( gs.isPlaying() ){
+                    gs.pause();
+                    // need a better way to send light messages
+                    that.send(mymessage);
+                }else{
+                    gs.play();
+                    mymessage.value = 127;
+                    that.send(mymessage);
+                }
+            }
+            // the knobs
+            if(msg.number >  70 && msg.number < 79) {
+                var knob = msg.number - 70;
+                that.writeLCDRegion(that.options.model["knob" + knob], 8, 0, knob);
+                gs.setProb(that.options.model["knob" + knob]  / 100, 0);
+            }
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        pitchbend : function (msg){
+        }
+    },
+    invokers: {},
+    modelListeners: {}
+});
+
 
 fluid.defaults("adam.midi.push.july2019", {
     gradeNames: ["adam.midi.push", "adam.midi.domlog", "adam.midi.console"],
@@ -25,6 +106,7 @@ fluid.defaults("adam.midi.push.july2019", {
             }
         },
         noteOff: function (msg) {
+                octopus.set("f1.mul", 0);
         },
         control: {
             func: function (that, msg) {
@@ -34,6 +116,7 @@ fluid.defaults("adam.midi.push.july2019", {
                 if( gs.isPlaying() ){
                     gs.pause();
 
+                    // need a better way to send light messages
                     that.send(mymessage);
                 }else{
                     gs.play();
@@ -50,6 +133,8 @@ fluid.defaults("adam.midi.push.july2019", {
             }
             },
             args: ["{that}", "{arguments}.0"]
+        },
+        pitchbend : function (msg){
         }
     },
     invokers: {},
@@ -136,24 +221,30 @@ fluid.defaults("adam.midi.bcr2000.january2018", {
     }
 });
 
-/*
- * // the future!!!
-fluid.defaults("adam.midi.bcr2000", {
-    gradeNames: "flock.midi.connection",
-    listeners: {
-        "noteOn.domoreimportantthing": "{synth}.set(awesome.ugen, 440)",
-        "noteOn.logNoteValue" : {
-            priority: "after:domoreimportantthing",
-        }
-    }
-});
-*/
-
 
 /////////////////////////////////////////////
 //  Performance Mappings
 /////////////////////////////////////////////
 
+function august2019(){
+    if(window !== undefined){
+        // load synths
+        window.gs = adam.glitchseq();
+        gs.pause();
+        window.octopus = adam.octopus();
+
+        window.sample1 = adam.sampler.simple({bufferUrl: "glitchseq/beat1.wav"});
+        window.sample2 = adam.sampler.simple({bufferUrl: "glitchseq/beat2.wav"});
+        window.sample3 = adam.sampler.simple({bufferUrl: "glitchseq/beat3.wav"});
+        window.sample4 = adam.sampler.simple({bufferUrl: "glitchseq/beat4.wav"});
+        window.sample5 = adam.sampler.simple({bufferUrl: "glitchseq/beat5.wav"});
+        window.sample6 = adam.sampler.simple({bufferUrl: "glitchseq/beat6.wav"});
+        window.sample7 = adam.sampler.simple({bufferUrl: "glitchseq/beat7.wav"});
+        window.sample8 = adam.sampler.simple({bufferUrl: "glitchseq/beat8.wav"});
+        // load midi controller mapping
+        window.abletonpush  = adam.midi.push.august2019(); 
+    }
+}
 
 function july2019(){
     if(window !== undefined){
@@ -254,36 +345,6 @@ fluid.defaults("adam.quadclick", {
 });
 
 
-
-fluid.defaults("adam.sampler.playdrone", {
-    gradeNames: ["flock.synth"],
-    synthDef:{
-        ugen: "flock.ugen.playBuffer",
-        id: "sample",
-        buffer:{
-            url: "samples/newdrone.wav"
-        },
-        start: 0,
-        loop: 0,
-        trigger:{
-            ugen: "flock.ugen.valueChangeTrigger",
-            source: 0
-        }
-    }
-});
-
-adam.sampler.playdrone.myplay = function(){ 
-    playdrone.set("sample.trigger.source", 1)
-};
-
-adam.sampler.playdrone.ripple = function(){
-    playdrone.set("sample.mul", {
-        ugen: "flock.ugen.squareOsc", 
-        add: 0.5,
-        mul: 0.5,
-        freq: 5
-    });
-};
 
 
 fluid.defaults("adam.sampler.fourdrone", {
