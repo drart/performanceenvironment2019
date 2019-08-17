@@ -203,12 +203,13 @@ fluid.defaults("adam.midi.push", {
         //knobReleased: {},
         clearLine: {
             func: function (that, l = 0){
-                if (l < 4)
-                    that.sendRaw([240,71,127,21,28+l,0,0,247]); // 
+                if (typeof l === "number" && l < 4 && l >= 0) 
+                    that.sendRaw([240,71,127,21,28+l,0,0,247]); 
             },
             args: ["{that}", "{arguments}.0"]
         },
         writeLCDRegion: {
+            // why do i need length here? 
             func: function (that, thestring, length, line, region){
                 if(typeof thestring != "string"){
                     thestring = thestring.toString();
@@ -216,6 +217,11 @@ fluid.defaults("adam.midi.push", {
                 if(typeof region != "number"){
                     region = 1;
                 }
+                /*
+                if (thestring.length < length){
+                    
+                }
+                */
                 thestring = thestring.padEnd(length);
                 that.writeLCD(thestring, line, ((region-1) * 8) + Math.floor(region/2));
             },
@@ -313,5 +319,6 @@ fluid.defaults("adam.midi.push", {
             args: ["{that}", "{arguments}.0"]
         },
         aftertouch: function(msg){}
+        //aftertouch: function(msg){} what does the touchstrip do? 
     }
 });
