@@ -3,23 +3,32 @@
 /////////////////////////////////////////////
 
 fluid.defaults("adam.midi.push.august2019", {
+    //gradeNames: ["adam.midi.push",  "adam.midi.console"],
     gradeNames: ["adam.midi.push", "adam.midi.domlog", "adam.midi.console"],
+    pedal1inverse: true,
+    mode: "play",
     listeners:{ 
         onReady: {
             func: function (that){
                 for(var i = 1; i < 9; i++){
                     that.writeLCDRegion(that.options.model["knob" + i], 8, 0, i);
                 }
+                for (var i = 0; i < 8; i++){
+                    that.writePad(0,i,1);
+                }
             },
             args: ["{that}"]
         },
         noteOn: function (msg) {
-            /*if (msg.note >= 35 && msg.note <= 100){
-                // bad start
-                //octopus.set("f1.freq", flock.midiFreq(msg.note));        
-                //octopus.set("f1.mul", 1);
+            //if (that.options.mode === "play"){
+            //}
+            if (msg.note >= 44 && msg.note <= 100){
+                /*
+                somesynth.set({
+                    
+                });
+                */
             }
-            */
             switch (msg.note){
                 case 36:     
                     sample1.noteOn(msg.velocity/127);
@@ -50,7 +59,6 @@ fluid.defaults("adam.midi.push.august2019", {
             }
         },
         noteOff: function (msg) {
-                //octopus.set("f1.mul", 0);
         },
         control: {
             func: function (that, msg) {
@@ -76,11 +84,17 @@ fluid.defaults("adam.midi.push.august2019", {
             },
             args: ["{that}", "{arguments}.0"]
         },
+        pedal1: function(state){
+            if (state === "down"){
+                pedalkick.noteOn();
+            }
+            if (state === "up"){
+            }
+
+        },
         pitchbend : function (msg){
         }
-    },
-    invokers: {},
-    modelListeners: {}
+    }
 });
 
 
@@ -229,9 +243,25 @@ fluid.defaults("adam.midi.bcr2000.january2018", {
 function august2019(){
     if(window !== undefined){
         // load synths
-        window.gs = adam.glitchseq();
+        //window.gs = adam.glitchseq();
+        fluid.defaults("adam.gseq",{
+            gradeNames: ["adam.glitchseq"],
+            listeners: {
+                beat: function(beat){console.log(beat)
+                    if (beat === 0){
+                        
+                    }
+                }
+            }
+        });
+
+        window.gs = adam.gseq();
         gs.pause();
-        window.octopus = adam.octopus();
+        //window.octopus = adam.octopus();
+
+        //window.quadsynth = adam.synth.quadvoicepanning();
+        // quadsynth.changenotes(38)
+        // quadsynth.changenotes(40)
 
         window.sample1 = adam.sampler.simple({bufferUrl: "glitchseq/beat1.wav"});
         window.sample2 = adam.sampler.simple({bufferUrl: "glitchseq/beat2.wav"});
@@ -241,6 +271,12 @@ function august2019(){
         window.sample6 = adam.sampler.simple({bufferUrl: "glitchseq/beat6.wav"});
         window.sample7 = adam.sampler.simple({bufferUrl: "glitchseq/beat7.wav"});
         window.sample8 = adam.sampler.simple({bufferUrl: "glitchseq/beat8.wav"});
+
+        //window.pedalkick= adam.sampler.simple({bufferUrl: "glitchseq/beat8.wav"});
+        window.kicksnap = adam.sampler.simple({bufferUrl: "snd/kicksnap2.wav"});
+        window.filtersnare = adam.sampler.simple({bufferUrl: "snd/filtersnare.wav"});
+        window.noisegong = adam.sampler.simple({bufferUrl: "snd/noisegong.wav"});
+
         // load midi controller mapping
         window.abletonpush  = adam.midi.push.august2019(); 
     }

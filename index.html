@@ -54,6 +54,7 @@
         <div id="midi-display"></div>
         <canvas id="meter"></canvas>
 
+        <script src="osccontrollers.js"></script>
         <!-- load midi interfaces -->
         <script src="midicontrollers.js"></script>
         <!-- load midi mappings -->
@@ -61,6 +62,10 @@
         <!-- select a mapping -->
         <script> 
             august2019(); 
+            flock.enviro.shared.play();
+            if (flock.environment.model.isPlaying === true){
+                document.getElementById('starter').checked = true;
+            }
         </script>
     </body>
 </html>
