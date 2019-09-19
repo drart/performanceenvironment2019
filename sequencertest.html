@@ -1,0 +1,184 @@
+<HTML>
+    <head>
+        <script src="lib/flocking/dist/flocking-all.js"></script>
+        <script src="lib/artlib/adam.js"></script>
+        <script>
+            flock.init({
+                //chans:4, 
+                bufferSize: 256 // lowest that chrome allows
+            });
+            var as = flock.environment.audioSystem;
+        </script>
+    </head>
+    <body>
+
+    <script>
+        
+
+        // two of these? 
+        var synth = flock.synth({
+            synthDef:{
+                id: "osc",
+                ugen: "flock.ugen.sawOsc",
+                freq: 1000,
+                mul: {
+                    ugen: "flock.ugen.asr",
+                    id: "env",
+                    attack: 0.01,
+                    sustain: 0.5,
+                    release: 0.1
+                }
+            },
+            invokers: {
+                trig: {
+                    func: function(that, freq){
+                        that.set("osc.freq", freq);
+                        that.set("env.gate", 1);
+                        setTimeout(function(){that.set("env.gate", 0)}, 10);
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                }
+            }
+        });
+
+        fluid.defaults("adam.sequence", {
+            gradeNames: "fluid.modelComponent",
+            model: {
+                target: null, // bad practice?
+                loop: false,
+                sync: "temp", // should a sequence start immediately or have a way of getting into sync?
+                // steps are either change appliers for synth.set
+                // or json {"func":"name", "args",[]} invoking the target
+                steps: {},
+            },
+            invokers: {
+                //onCreate : console.log("afadfafafadfadfa"), this only fires once? 
+                settarget: {
+                    func: function(that, target){
+                        that.model.target = target;
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                },
+                setstep: {
+                    func: function(that, step, payload){ // number of step, json object
+                        that.model.steps[step] = payload;
+                    },
+                    args: ["{that}", "{arguments}.0", "{arguments}.1"]
+                },
+                setsequence: {
+                    func: function(that, seq){
+                        that.model.steps = seq;
+                    },
+                    args: ["{that}" ,"{arguments}.0"]
+                },
+                arraytosequence: {
+                    func: function(that, arr){
+                        // check if arr if undefined? 
+                        // check ticks in a beat? 
+                        const steplength = Math.floor(480 / arr.length);
+                        for(var i = 0; i < arr.length; i++){
+                            that.model.steps[steplength * i] = arr[i];
+                        }
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                }
+            }
+        });
+
+        fluid.defaults("adam.sequencer",{
+            gradeNames: "flock.synth",
+            model: {
+                beatlength: 480,
+                ticktime: 0,
+                sequences: [],
+                outputs: [] // graphical, midi, etc...
+            },
+            synthDef: {
+                ugen: "flock.ugen.triggerCallback",
+                trigger: {
+                    id: "pulse",
+                    ugen: "flock.ugen.impulse",
+                    freq: 480 // 240 
+                },
+                options: {
+                    callback: {
+                        func: function(that){
+                            if (that.model.ticktime % that.model.beatlength === 0){
+                                console.log("beat");
+                            }
+                            for (let s of that.model.sequences){
+                                var thetick = (s.model.loop === true) ? that.model.ticktime % that.model.beatlength : that.model.ticktime;
+                                if ( s.model.steps[thetick] !== undefined){
+                                    const payload = s.model.steps[thetick];
+                                    const target = s.model.target;
+                                    
+                                    if(target){
+                                        if(payload.func){
+                                            target[payload.func](payload.args);
+                                        }else{
+                                            target.set(payload);
+                                        }
+                                    }
+                                }
+                            }
+                            that.model.ticktime++;
+                        },
+                        args: ["{that}"]
+                    }
+                }
+            },
+            events: {
+                thingy: null
+            },
+            invokers: {
+                setbpm: {
+                    func: function(that, bpm){
+                        that.set("pulse.freq", bpm);
+                    },
+                    args: ["{that}", "{argumentss}.0"]
+                },
+                addsequence: {
+                    func: function(that, seq){
+                        that.model.sequences.push(seq);
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                }
+            }
+        });
+
+
+        var payload = {"func": "trig", "args": 1000};
+        var s = adam.sequence();
+        s.model.loop = true;
+        s.settarget(synth);
+        s.arraytosequence([payload, payload, payload, payload, payload])
+        /*
+        s.setstep(0,{"func": "trig", "args": 1000});
+        s.setstep(96,{"func": "trig", "args": 1000});
+        s.setstep(96*2,{"func": "trig", "args": 1000});
+        s.setstep(96*3,{"func": "trig", "args": 1000});
+        s.setstep(96*4,{"func": "trig", "args": 1000});
+        */
+
+        var t = adam.sequence();
+        t.model.loop = true;
+        t.settarget(synth);
+        /*
+        t.setstep(0,{"func": "trig", "args": 600});
+        t.setstep(120,{"func": "trig", "args": 600});
+        t.setstep(240,{"func": "trig", "args": 600});
+        t.setstep(360,{"func": "trig", "args": 600});
+        */
+        payload2 = { ...payload }; 
+        payload2.args = 600;
+        t.arraytosequence([payload2, payload2, payload2, payload2])
+        //t.arraytosequence([payload2, payload2])
+
+        var a = adam.sequencer();
+        a.addsequence(s);
+        a.addsequence(t);
+
+    </script>
+
+    </body>
+</HTML>

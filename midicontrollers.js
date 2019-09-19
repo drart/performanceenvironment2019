@@ -160,6 +160,20 @@ fluid.defaults("adam.midi.bcr2000", {
     }
 });
 
+
+// Studiomux midi connection
+fluid.defaults("adam.midi.ims20", {
+    gradeNames: "flock.midi.connection",
+    openImmediately: true,
+    ports: {
+        input: {
+            name: "MS-20"
+        }
+    }
+});
+
+
+
 // TODO
 // modelize the knobs? val, min, max, inc, stringprepend, stringappend -> pair with the screen?
 //
