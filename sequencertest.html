@@ -12,6 +12,46 @@
     </head>
     <body>
 
+
+    <script>
+        var pushcontroller = flock.midi.connection({
+            openImmediatley: true,
+             sysex: true,
+             ports: {
+                 input: {
+                     name:"Ableton Push User Port" 
+                 },
+                 output: {
+                     name: "Ableton Push User Port" 
+                 }
+             }, 
+             notedown: undefined, 
+             listeners: {
+                 noteOn: {
+                     func: function(that, msg){
+                         that.options.notedown = msg.note;
+                     },
+                     args: ["{that}", "{arguments}.0"]
+                 },
+                 noteOff: {
+                     func: function(that, msg){
+                         if (that.options.notedown !== msg.note){
+                             // create sequence!
+                         };
+                     },
+                     args: ["{that}", "{arguments}.0"]
+                 }
+             }
+        });
+
+        function gridlight(msg){
+        };
+
+    </script>
+
+
+
+
     <script>
         
 
@@ -41,6 +81,15 @@
             }
         });
 
+        fluid.defaults("adam.pushsequencelights",{
+            gradeNames: "fluid.modelComponent", 
+            model: {
+                pads: [],
+                backgroundColour: 10,
+                foregroundColor: 60
+            },
+        });
+
         fluid.defaults("adam.sequence", {
             gradeNames: "fluid.modelComponent",
             model: {
@@ -50,6 +99,7 @@
                 // steps are either change appliers for synth.set
                 // or json {"func":"name", "args",[]} invoking the target
                 steps: {},
+                reverse: false, // 
             },
             invokers: {
                 //onCreate : console.log("afadfafafadfadfa"), this only fires once? 
