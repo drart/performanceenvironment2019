@@ -26,7 +26,29 @@
                  }
              }, 
              notedown: undefined, 
+             invokers: {
+                 writePad: {
+                     func: function(that, x = 0, y = 0, colour = 1){
+                         console.log(colour);
+                         var midimessage = {type: "noteOn", channel: 0, note: 36, velocity: colour}
+                         midimessage.note = ( x * 8 ) + y + 36;
+                         that.send(midimessage); // set up buttons
+                     },
+                     args: ["{that}", "{arguments}.0", "{arguments}.1", "{arguments}.2"]
+                 },
+             },
              listeners: {
+                 onReady: {
+                     func: function(that){
+                         console.log("fkljaslf");
+                         for(var x = 0; x < 8; x++){
+                             for( var y = 0; y < 8; y++){
+                                 that.writePad(x,y,0);
+                             }
+                         }
+                     },
+                     args: ["{that}"]
+                 },
                  noteOn: {
                      func: function(that, msg){
                          that.options.notedown = msg.note;
@@ -37,6 +59,30 @@
                      func: function(that, msg){
                          if (that.options.notedown !== msg.note){
                              // create sequence!
+                             //console.log( pushNotesToGrid(msg));
+                             //console.log( pushNotesToGrid(that.options.notedown));
+                             // todo: figure out orientation 
+                             var startpoint = pushNotesToGrid (msg);
+                             var endpoint = pushNotesToGrid (that.options.notedown);
+                             console.log(endpoint.column - startpoint.column);
+
+
+                             // do a single row  sequence for now
+                             var payload = {"func": "trig", "args": 1000};
+                             var stepz = [];
+                             for (var i = 0; i <= (endpoint.column - startpoint.column); i++){
+                                 stepz.push(payload);
+                                 that.writePad(startpoint.row, startpoint.column + i);
+                             }
+                             console.log(stepz);
+                             // ??
+                             //var s = adam.sequence({loop: true, target: synth, steps: stepz});
+                             var s = adam.sequence();
+                             s.model.loop = true;
+                             s.settarget(synth);
+                             s.arraytosequence(stepz)
+                             // sync????
+                             a.addsequence(s);
                          };
                      },
                      args: ["{that}", "{arguments}.0"]
@@ -44,12 +90,23 @@
              }
         });
 
+        function pushNotesToGrid(msg){
+            var notenumber; 
+            if (typeof msg === "number")
+                notenumber = msg;
+            else
+                notenumber = msg.note;
+
+            return ({ 
+                row: Math.floor((notenumber - 36) / 8),
+                column: (notenumber-36) % 8 
+            });
+        };
+
         function gridlight(msg){
         };
 
     </script>
-
-
 
 
     <script>
@@ -225,8 +282,8 @@
         //t.arraytosequence([payload2, payload2])
 
         var a = adam.sequencer();
-        a.addsequence(s);
-        a.addsequence(t);
+        //a.addsequence(s);
+        //a.addsequence(t);
 
     </script>
 
