@@ -14,6 +14,34 @@
 
 
     <script>
+        var quneo = flock.midi.connection({
+            openImmediately: true,
+            ports: {
+                input: {
+                    name: "Quneo"
+                },
+                output: {
+                    name: "Quneo"
+                }
+            },
+            invokers: {
+                writePad: {
+                    func: function( that, x = 0, y = 0, colour = 1){
+                         var midimessage = {type: "noteOn", channel: 0, note: 2, velocity: colour}
+                         //that.send({type: "noteOn", note: 3, velocity: 100, channel: 1})
+                         //midimessage.note = ( x * 8 ) + y + 36;
+                         that.send(midimessage); // set up buttons
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                }
+            },
+            listeners: {
+                onCreate: function(){console.log("fkljasldfj");},
+                noteOn: function(msg){console.log(msg)},
+                noteOff: function(msg){console.log(msg)},
+            }
+        });
+
         var pushcontroller = flock.midi.connection({
             openImmediately: true,
              sysex: true,
@@ -44,8 +72,12 @@
                                  that.writePad(x,y,0);
                              }
                          }
-
-                         that.send({type: "control", number: 85, value: 1, channel: 0});
+                         that.send({type: "control", number: 85, value: 1, channel: 0}); // play button
+                         that.send({type: "control", number: 87, value: 1, channel: 0}); // new button
+                         that.send({type: "control", number: 40, value: 1, channel: 0}); // 1/16 button
+                         that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
+                         that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
+                         that.send({type: "control", number: 102, value: 1, channel: 0}); // bottom strip
                      },
                      args: ["{that}"]
                  },
@@ -60,15 +92,12 @@
                  noteOff: {
                      func: function(that, msg){
                          if (msg.note < 30){return;}; // push knob touches send noteon and off
+                         // create sequence!
                          if (that.options.notedown !== msg.note){
-                             // create sequence!
-                             //console.log( pushNotesToGrid(msg));
-                             //console.log( pushNotesToGrid(that.options.notedown));
                              // todo: figure out orientation 
                              var startpoint = pushNotesToGrid (msg);
                              var endpoint = pushNotesToGrid (that.options.notedown);
                              console.log(endpoint.column - startpoint.column);
-
 
                              // do a single row  sequence for now
                              var payload = {"func": "trig", "args": 1000};
@@ -82,7 +111,7 @@
                              //var s = adam.sequence({loop: true, target: synth, steps: stepz});
                              var s = adam.sequence();
                              s.model.loop = true;
-                             s.settarget(adam.sawsynth());
+                             s.settarget(selectedsynth);
                              s.arraytosequence(stepz);
                              a.addsequence(s);
                          }else{
@@ -93,7 +122,7 @@
                              var payload = {"func": "trig", "args": 200};
                              var s = adam.sequence();
                              s.model.loop = true;
-                             s.settarget(adam.sawsynth());
+                             s.settarget(selectedsynth());
                              s.arraytosequence([payload]); 
                              a.addsequence(s);
                          };
@@ -105,6 +134,21 @@
                          console.log(msg);
                          if(msg.number === 85 && msg.value === 127){
                              a.play();
+                         }
+                         // change selected synth 
+                         if(msg.number === 20 ){
+                             selectedsynth = adam.sawsynth;
+                             that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
+                             that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
+                         }
+                         if(msg.number === 21 ){
+                             selectedsynth = adam.ticksynth;
+                             that.send({type: "control", number: 20, value: 1, channel: 0}); //  top strip
+                             that.send({type: "control", number: 21, value: 10, channel: 0}); //  top strip
+                         }
+
+                         if(msg.number >= 102 && msg.number <= 109){
+                             // change selected payload
                          }
                      },
                      args: ["{that}", "{arguments}.0"]
@@ -124,19 +168,56 @@
                 column: (notenumber-36) % 8 
             });
         };
-
-
     </script>
 
     <script>
         fluid.defaults( "adam.gridquencer", {
             gradeNames: "fluid.modelComponent",
-            model :{} // put a grid in here? put outputs in here? put inputs in here? 
+            model :{}, // put a grid in here? put outputs in here? put inputs in here? 
+            invokers: {
+                addsequence: {
+                    func: function(that, changespec, payloads){
+                        // test payloads for object or array
+                    
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                },
+            }
         });
+
+        fluid.defaults( "adam.gridsynth", {
+            gradeNames: "fluid.modelComponent",
+            model : {
+                synth: null,
+                payloads:  [] // available payloads per step
+            }
+        });
+
     </script>
 
 
     <script>
+        fluid.defaults("adam.ticksynth", {
+            gradeNames: "flock.synth",
+            synthDef: {
+                id: "osc",
+                ugen: "flock.ugen.impulse",
+                freq: {
+                    ugen: "flock.ugen.xLine",
+                    start: 0,
+                    end: 0,
+                    duration: 1
+                }, // mul: 0.5
+            },
+            invokers: {
+                trig: {
+                    func: function(that){
+                        that.set({"osc.freq.start": 1000, "osc.freq.end": 0});
+                    },
+                    args: ["{that}"]
+                }
+            }
+        });
 
         fluid.defaults("adam.sawsynth", {
             gradeNames: "flock.synth",
@@ -233,7 +314,9 @@
                         }
                     },
                     args: ["{that}", "{arguments}.0"]
-                }
+                },
+                applyoffset: function(){}, // placeholder
+                clearsequence: function(){}, // placeholder
             }
         });
 
@@ -266,6 +349,7 @@
                                     
                                     if(target){
                                         if(payload.func){
+                                            console.log(payload.func);
                                             target[payload.func](payload.args);
                                         }else{
                                             target.set(payload);
@@ -299,6 +383,8 @@
         });
 
         var a = adam.sequencer();
+        var selectedsynth = adam.sawsynth; // 
+        var selectedpayload = {}; // ??
 
         /*
            // first demo DEMO
@@ -325,6 +411,7 @@
         //a.addsequence(t);
         */
 
+
     </script>
 
     <input type="button" onclick="a.play();">START</input>
@@ -333,13 +420,19 @@
         <li>highlight step</li>
         <li>change sequence length by ammending it </li>
         <li><s>single step sequence</s> </li>
-        <li>offset by touching it  </li>
+        <li> touch a step to edit its payload?</li>
+        <li>offset by touching it (requires mode switching?) </li>
         <li>delete by touching the zone again </li>
         <li>reverse by touching the first (what's the difference of cat to one and reverse?) </li>
         <li> change tempo</li>
         <li> multiple row/beat sequences</li>
         <li> multiple synths availabe on top pads</li>
         <li> options for step payloads (put them on the next row?)</li>
+        <li> cross rhythms, poly temporal (sequencer sends message when a sync occurs?)</li>
+        <li> mute sequence </li>
+        <li> chain sequences </li>
+        <li> think through tracks and sequences and instruments </li>
+        <li> payloads have functions (random pitch, random pitch from set, non-uniform random pitch set</li>
     </ul>
     </body>
 </HTML>
