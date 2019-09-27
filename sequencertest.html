@@ -81,42 +81,10 @@
                      },
                      args: ["{that}"]
                  },
-                 noteOn: {
-                     func: function(that, msg){
-                         if (msg.note < 30){return;}; // push knob touches send noteon and off
-
-                         that.options.notedown = msg.note;
-                     },
-                     args: ["{that}", "{arguments}.0"]
-                 },
                  noteOff: {
                      func: function(that, msg){
                          if (msg.note < 30){return;}; // push knob touches send noteon and off
-                         // create sequence!
-                         if (that.options.notedown !== msg.note){
-                             // todo: figure out orientation 
-                             var startpoint = pushNotesToGrid (msg);
-                             var endpoint = pushNotesToGrid (that.options.notedown);
-                             console.log(endpoint.column - startpoint.column);
-
-                             // do a single row  sequence for now
-                             var payload = {"func": "trig", "args": 1000};
-                             var stepz = [];
-                             for (var i = 0; i <= (endpoint.column - startpoint.column); i++){
-                                 stepz.push(payload);
-                                 that.writePad(startpoint.row, startpoint.column + i);
-                             }
-                             console.log(stepz);
-                             // ??
-                             //var s = adam.sequence({loop: true, target: synth, steps: stepz});
-                             var s = adam.sequence();
-                             s.model.loop = true;
-                             s.settarget(selectedsynth);
-                             s.arraytosequence(stepz);
-                             a.addsequence(s);
-                         }else{
-                             console.log(pushNotesToGrid(msg));
-                            
+                         if (msg.note === that.options.notedown){
                              var pos = pushNotesToGrid(msg);
                              that.writePad( pos.row, pos.column  );
                              var payload = {"func": "trig", "args": 200};
@@ -125,6 +93,51 @@
                              s.settarget(selectedsynth());
                              s.arraytosequence([payload]); 
                              a.addsequence(s);
+                             console.log("single");
+                         }
+                         that.options.notedown = undefined;
+                     },
+                     args: ["{that}", "{arguments}.0"]
+                 },
+                 noteOn: {
+                     func: function(that, msg){
+                         if (msg.note < 30){return;}; // push knob touches send noteon and off
+
+                         // todo : check to see if grid space is occupied
+
+                         // create sequence!
+                         if (that.options.notedown !== undefined && that.options.notedown !== msg.note){
+                             // todo: figure out orientation 
+
+                             var startpoint, endpoint; 
+                             if (msg.note < that.options.notedown){
+                                startpoint = pushNotesToGrid (msg);
+                                endpoint = pushNotesToGrid (that.options.notedown);
+                             }else{
+                                endpoint = pushNotesToGrid (msg);
+                                startpoint = pushNotesToGrid (that.options.notedown);
+                             };
+
+
+                             // todo: add multirow sequence
+                             var payload = {"func": "trig", "args": 1000};
+                             var stepz = [];
+                             for (var i = 0; i <= (endpoint.column - startpoint.column); i++){
+                                 stepz.push(payload);
+                                 that.writePad(startpoint.row, startpoint.column + i);
+                             }
+                             // ??
+                             //var s = adam.sequence({loop: true, target: synth, steps: stepz});
+                             var s = adam.sequence();
+                             s.model.loop = true;
+                             s.settarget(selectedsynth());
+                             s.arraytosequence(stepz);
+                             a.addsequence(s);
+
+                             //console.log(stepz);
+                             that.options.notedown = undefined;
+                         }else{
+                             that.options.notedown = msg.note;
                          };
                      },
                      args: ["{that}", "{arguments}.0"]
@@ -276,16 +289,16 @@
         fluid.defaults("adam.sequence", {
             gradeNames: "fluid.modelComponent",
             model: {
+                steps: {},
                 target: null, // bad practice?
+                mute: false,
                 loop: false,
+                reverse: false, // 
                 sync: "temp", // should a sequence start immediately or have a way of getting into sync?
                 // steps are either change appliers for synth.set
                 // or json {"func":"name", "args",[]} invoking the target
-                steps: {},
-                reverse: false, // 
             },
             invokers: {
-                //onCreate : console.log("afadfafafadfadfa"), this only fires once? 
                 settarget: {
                     func: function(that, target){
                         that.model.target = target;
@@ -347,9 +360,8 @@
                                     const payload = s.model.steps[thetick];
                                     const target = s.model.target;
                                     
-                                    if(target){
+                                    if(target && target.loop !== false){
                                         if(payload.func){
-                                            console.log(payload.func);
                                             target[payload.func](payload.args);
                                         }else{
                                             target.set(payload);
@@ -376,6 +388,12 @@
                 addsequence: {
                     func: function(that, seq){
                         that.model.sequences.push(seq);
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                },
+                removesequence: {
+                    func: function(that, seq){
+                        that.model.sequences.pop();
                     },
                     args: ["{that}", "{arguments}.0"]
                 }
@@ -411,25 +429,26 @@
         //a.addsequence(t);
         */
 
-
     </script>
 
     <input type="button" onclick="a.play();">START</input>
     <ul>
-        <li>check to see if grid placement exists already... </li>
-        <li>highlight step</li>
-        <li>change sequence length by ammending it </li>
         <li><s>single step sequence</s> </li>
+        <li> <s>multiple synths availabe on top pads</s></li>
+        <li> mute sequence </li>
+        <li> reverse sequence </li>
+        <li> delete sequence </li>
+        <li> check to see if grid placement exists already... </li>
+        <li> highlight step</li>
+        <li>change sequence length by ammending it </li>
         <li> touch a step to edit its payload?</li>
-        <li>offset by touching it (requires mode switching?) </li>
-        <li>delete by touching the zone again </li>
-        <li>reverse by touching the first (what's the difference of cat to one and reverse?) </li>
+        <li> offset by touching it (requires mode switching?) </li>
+        <li> delete by touching the zone again </li>
+        <li> reverse by touching the first (what's the difference of cat to one and reverse?) </li>
         <li> change tempo</li>
         <li> multiple row/beat sequences</li>
-        <li> multiple synths availabe on top pads</li>
         <li> options for step payloads (put them on the next row?)</li>
         <li> cross rhythms, poly temporal (sequencer sends message when a sync occurs?)</li>
-        <li> mute sequence </li>
         <li> chain sequences </li>
         <li> think through tracks and sequences and instruments </li>
         <li> payloads have functions (random pitch, random pitch from set, non-uniform random pitch set</li>
