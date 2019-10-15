@@ -127,11 +127,18 @@
                                  that.writePad(startpoint.row, startpoint.column + i);
                              }
                              // ??
-                             //var s = adam.sequence({loop: true, target: synth, steps: stepz});
+                             var s = adam.sequence({
+                               model: {
+                                     loop: true, 
+                                     target: 'synth', 
+                                     steps: stepz
+                                 }
+                             });
                              var s = adam.sequence();
                              s.model.loop = true;
                              s.settarget(selectedsynth());
                              s.arraytosequence(stepz);
+
                              a.addsequence(s);
 
                              //console.log(stepz);
@@ -259,6 +266,37 @@
         });
 
         fluid.defaults("adam.grid", {
+            gradeNames:  "fluid.modelComponent",
+            numPads: 64,
+            model: {
+                pads: "@expand:adam.grid.initEmptyGrid({that}.options.numPads)"
+//                 pads: {
+//                     "0": true,
+//                     "1": false,
+//                     "2": true
+//                }
+            },
+            modelListeners: {
+                "pads.*": {
+                    namespace: "sendMIDIPadState",
+                    funcName: "adam.padStateChange",
+                    args: ["{change}.path.0", "{change}.value"]
+                }
+            }
+        });
+
+        adam.grid.initEmptyGrid = function (numPads) {
+            var pads = [];
+            for (var i = 0; i < numPads; i++) {
+                pads[i] = 0;
+            }
+        };
+
+        adam.grid.padStateChange = function (padIdx, value) {
+            adam.push.sendMidiForStateChange(padIdx, value);
+        };
+
+        fluid.defaults("adam.grid", {
             gradeNames: "fluid.modelComponent",
             model: {
                 rows: 8,
@@ -286,12 +324,36 @@
             },
         });
 
+        fluid.defaults("adam.pushState", {
+            gradeNames: "fluid.modelComponent",
+
+            model: {
+                sequencePads: {
+                    "0": {
+                        enabled: false,
+                        colour: {
+                            r: 255,
+                            g: 255,
+                            b: 255
+                        }
+                    }
+                },
+                samplePads: {
+                    "0": {
+                        enabled: true
+                    }
+                }
+
+            }
+        });
+
         fluid.defaults("adam.sequence", {
             gradeNames: "fluid.modelComponent",
             model: {
                 steps: {},
                 target: null, // bad practice?
                 mute: false,
+                length: null, //
                 loop: false,
                 reverse: false, // 
                 sync: "temp", // should a sequence start immediately or have a way of getting into sync?
@@ -328,6 +390,7 @@
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
+                retrigger: function(){}, // placeholder
                 applyoffset: function(){}, // placeholder
                 clearsequence: function(){}, // placeholder
             }
@@ -336,10 +399,11 @@
         fluid.defaults("adam.sequencer",{
             gradeNames: "flock.synth",
             model: {
+                tempo: 60,
                 beatlength: 480,
                 ticktime: 0,
                 sequences: [],
-                outputs: [] // graphical, midi, etc...
+                //outputs: [] // graphical, midi, etc...
             },
             synthDef: {
                 ugen: "flock.ugen.triggerCallback",
