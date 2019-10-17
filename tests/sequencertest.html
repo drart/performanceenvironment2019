@@ -1,7 +1,7 @@
 <HTML>
     <head>
-        <script src="lib/flocking/dist/flocking-all.js"></script>
-        <script src="lib/artlib/adam.js"></script>
+        <script src="../lib/flocking/dist/flocking-all.js"></script>
+        <!--script src="../lib/artlib/adam.js"></script-->
         <script>
             flock.init({
                 //chans:4, 
@@ -13,7 +13,10 @@
     <body>
 
 
+    <script src="enveloper.js"></script>
+    <script src="midimappings.js"></script>
     <script>
+/*
         var quneo = flock.midi.connection({
             openImmediately: true,
             ports: {
@@ -188,6 +191,7 @@
                 column: (notenumber-36) % 8 
             });
         };
+    */
     </script>
 
     <script>
@@ -216,7 +220,9 @@
     </script>
 
 
+    <script src="synths.js"></script>
     <script>
+    /*
         fluid.defaults("adam.ticksynth", {
             gradeNames: "flock.synth",
             synthDef: {
@@ -264,7 +270,10 @@
                 }
             }
         });
-
+        */
+        //------------------------------------------
+        // grid model
+        //------------------------------------------
         fluid.defaults("adam.grid", {
             gradeNames:  "fluid.modelComponent",
             numPads: 64,
@@ -279,7 +288,7 @@
             modelListeners: {
                 "pads.*": {
                     namespace: "sendMIDIPadState",
-                    funcName: "adam.padStateChange",
+                    funcName: "adam.padStateChange", // connect this to adam.push?
                     args: ["{change}.path.0", "{change}.value"]
                 }
             }
@@ -290,6 +299,7 @@
             for (var i = 0; i < numPads; i++) {
                 pads[i] = 0;
             }
+            // return pads;  // ??
         };
 
         adam.grid.padStateChange = function (padIdx, value) {
@@ -299,9 +309,26 @@
         fluid.defaults("adam.grid", {
             gradeNames: "fluid.modelComponent",
             model: {
+                allowoverflow: false, // zones must be unique
                 rows: 8,
                 columns: 8,
                 grid: [] // 0-64
+            },
+            invokers: {
+                addzone: { 
+                    func: function(that, xpos, ypos ){
+                        if (that.model.allowflow){
+                            // allow all additions to the grid
+                            return true;
+                        }else{
+                            // if region doesn't overlap then add
+                            return true;
+                            // if region overlaps don't add and return false
+                            return false;
+                        }
+                    },
+                    args: ["{that}", "{arguments}.0", "{arguments}.1"]
+                }
             },
             listeners: {
                 onCreate: {
@@ -315,27 +342,17 @@
             }
         });
 
-        fluid.defaults("adam.pushsequencelights",{
-            gradeNames: "fluid.modelComponent", 
-            model: {
-                pads: [],
-                backgroundColour: 10,
-                foregroundColor: 60
-            },
-        });
-
+        //------------------------------------------
+        // grid to push mappings
+        //------------------------------------------
         fluid.defaults("adam.pushState", {
             gradeNames: "fluid.modelComponent",
-
             model: {
+                mode: "grid", // envelope, sequence, payload
                 sequencePads: {
                     "0": {
                         enabled: false,
-                        colour: {
-                            r: 255,
-                            g: 255,
-                            b: 255
-                        }
+                        colour: 98
                     }
                 },
                 samplePads: {
@@ -343,9 +360,21 @@
                         enabled: true
                     }
                 }
-
-            }
+            },
+            modelListeners:{},
+            listeners: {
+                addsequence: {
+                    funcName: "adam.pushState.addsequence",
+                    args: ["{that}", "{arguments}.0", "{arguments}.1"]
+                } // add sequence to sequencer 
+            },
+            invokers: {}
         });
+
+        adam.pushState.addsequence = function(that, startpos, endpos){
+            adam.grid.addsequence();
+        };
+
 
         fluid.defaults("adam.sequence", {
             gradeNames: "fluid.modelComponent",
@@ -392,7 +421,12 @@
                 },
                 retrigger: function(){}, // placeholder
                 applyoffset: function(){}, // placeholder
-                clearsequence: function(){}, // placeholder
+                clearsequence: {
+                    func: function(that){
+                        that.model.steps = {};
+                    },
+                    args: "{that}"
+                }, 
             }
         });
 
@@ -403,7 +437,6 @@
                 beatlength: 480,
                 ticktime: 0,
                 sequences: [],
-                //outputs: [] // graphical, midi, etc...
             },
             synthDef: {
                 ugen: "flock.ugen.triggerCallback",
@@ -464,34 +497,10 @@
             }
         });
 
+
         var a = adam.sequencer();
         var selectedsynth = adam.sawsynth; // 
         var selectedpayload = {}; // ??
-
-        /*
-           // first demo DEMO
-        var payload = {"func": "trig", "args": 1000};
-        var s = adam.sequence();
-        s.model.loop = true;
-        s.settarget(adam.sawsynth());
-        s.arraytosequence([payload, payload, payload, payload, payload])
-
-        var t = adam.sequence();
-        t.model.loop = true;
-        t.settarget(adam.sawsynth());
-        /*
-        t.setstep(0,{"func": "trig", "args": 600});
-        t.setstep(120,{"func": "trig", "args": 600});
-        t.setstep(240,{"func": "trig", "args": 600});
-        t.setstep(360,{"func": "trig", "args": 600});
-        payload2 = { ...payload }; 
-        payload2.args = 600;
-        t.arraytosequence([payload2, payload2, payload2, payload2])
-        //t.arraytosequence([payload2, payload2])
-
-        //a.addsequence(s);
-        //a.addsequence(t);
-        */
 
     </script>
 
@@ -517,5 +526,33 @@
         <li> think through tracks and sequences and instruments </li>
         <li> payloads have functions (random pitch, random pitch from set, non-uniform random pitch set</li>
     </ul>
+    <script>
+
+        /*
+           // first demo DEMO
+        var payload = {"func": "trig", "args": 1000};
+        var s = adam.sequence();
+        s.model.loop = true;
+        s.settarget(adam.sawsynth());
+        s.arraytosequence([payload, payload, payload, payload, payload])
+
+        var t = adam.sequence();
+        t.model.loop = true;
+        t.settarget(adam.sawsynth());
+        /*
+        t.setstep(0,{"func": "trig", "args": 600});
+        t.setstep(120,{"func": "trig", "args": 600});
+        t.setstep(240,{"func": "trig", "args": 600});
+        t.setstep(360,{"func": "trig", "args": 600});
+        payload2 = { ...payload }; 
+        payload2.args = 600;
+        t.arraytosequence([payload2, payload2, payload2, payload2])
+        //t.arraytosequence([payload2, payload2])
+
+        //a.addsequence(s);
+        //a.addsequence(t);
+        */
+    </script>
+
     </body>
 </HTML>
