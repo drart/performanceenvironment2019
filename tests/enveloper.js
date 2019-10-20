@@ -1,19 +1,21 @@
 fluid.defaults('adam.enveloper', {
-    gradeNames: 'flock.synth',
-    synthDef: {
-        id: "env",
-        ugen: "flock.ugen.envGen",
-        rate: "control",
-        mul: 1,
-        //envelope: {},
+    gradeNames: 'fluid.modelComponent',
+    model: {
+        envelope: {
+            levels: [],
+            times: [],
+            curve: []
+        },
+        loop: false,
+        looptimer : null,
     },
-    loop: false,
-    looptimer : null,
     invokers: {
-        range: {
+        envrange: {
             func: function(that, low, high){
-                that.set("env.mul", high - low);
-                that.set("env.add", low);
+                //that.set("env.mul", high - low);
+                //thhat.set("env.add", low);
+                that.model.mul = high - low;
+                that.model.add = low;
             },
             args: ["{that}", "{arguments}.0", "{arguments}.1"] 
         },
@@ -33,18 +35,18 @@ fluid.defaults('adam.enveloper', {
                        }
                    } 
                 };
-               console.log(envobj);
-                that.set("env.envelope", envobj);
+               that.model.envelope = envobj; 
+               return that.model.envelope;
             },
             args: ["{that}", "{arguments}.0"]
         },
-        trig: {
-            func: function(that){
+        triggerenvelope: {
+            func: function(that, address){
                 var myfunc = function(that){
                     that.set("env.gate", 0);
                     that.set("env.gate", 1);
                 };
-                if(that.options.loop){
+                if(that.model.loop){
                     var theenv = that.getenvelope();
                     var envduration = 0;
                     for(var i = 0; i < that.getenvelope().times.length; i++){
@@ -55,7 +57,7 @@ fluid.defaults('adam.enveloper', {
                     myfunc(); 
                 }
             },
-            args: ["{that}"]
+            args: ["{that}", "{arguments}.0"]
         },
         getsteplevel: {
             func: function(that, step){
@@ -76,13 +78,23 @@ fluid.defaults('adam.enveloper', {
             },
             args: ["{that}"]
         },
+        isenvelope: {
+            func: function(that, address){
+                return ( that.get(address).ugen === "envGen" ) ? true : false;
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
         getenvelope: {
-            func: "{that}.get",
-            args: ["env.envelope"]
+            func: function(that){return that.model.envelope},
+            args: ["{that}"]
         },
         addstep:{
             func: function(that, level, time, curve){
                 var theenv = that.getenvelope();
+
+                if (theenv.levels.length < 2){
+                    console.log('oops');
+                };
 
                 theenv.levels.push(level);
                 var thetime = (time === undefined)? 1 : time;
@@ -90,7 +102,7 @@ fluid.defaults('adam.enveloper', {
                 theenv.times.push(thetime);
                 theenv.curve.push(thecurve);
 
-                that.set("env.envelope", theenv);
+                //that.set("env.envelope", theenv);
             },
             args: ["{that}", "{arguments}.0","{arguments}.1","{arguments}.2"] 
         },
