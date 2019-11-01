@@ -1,31 +1,26 @@
 
-var quneo = flock.midi.connection({
-    openImmediately: true,
-    ports: {
-        input: {
-            name: "Quneo"
-        },
-        output: {
-            name: "Quneo"
-        }
-    },
-    invokers: {
-        writePad: {
-            func: function( that, x = 0, y = 0, colour = 1){
-                var midimessage = {type: "noteOn", channel: 0, note: 2, velocity: colour}
-                //that.send({type: "noteOn", note: 3, velocity: 100, channel: 1})
-                //midimessage.note = ( x * 8 ) + y + 36;
-                that.send(midimessage); // set up buttons
-            },
-            args: ["{that}", "{arguments}.0"]
-        }
+fluid.defaults("pushmapping", {
+    gradeNames: ["fluid.modelComponent"], // push controller
+    model: {
+        mode: "grid", // notes, envelope
     },
     listeners: {
-        onCreate: function(){console.log("fkljasldfj");},
-        noteOn: function(msg){console.log(msg)},
-        noteOff: function(msg){console.log(msg)},
+        /*
+       noteOn.mapping: { // what about the knob touches?
+           func: function(that){
+               if(that.model.mode = "grid") that.gridmapping;
+           },
+           args: ["{that}"]
+       },
+       */
+    },
+    invokers: {
+        gridmapping: {},
+        notemapping: {}
     }
+
 });
+
 
 var pushcontroller = flock.midi.connection({
     openImmediately: true,
@@ -78,6 +73,8 @@ var pushcontroller = flock.midi.connection({
                     s.settarget(selectedsynth());
                     s.arraytosequence([payload]); 
                     a.addsequence(s);
+                    //a.selectsequence(s); //// BROKEN?!?!?
+                    selectedsequence = s;
                     console.log("single");
                 }
                 that.options.notedown = undefined;
@@ -103,22 +100,34 @@ var pushcontroller = flock.midi.connection({
                         startpoint = pushNotesToGrid (that.options.notedown);
                     };
 
+                    ///////
+                    // BIG TODO
+                    // grid test for addition 
+                    // ///
 
-                    // todo: add multirow sequence
+                    // todo better payload additions 
                     var payload = {"func": "trig", "args": 1000};
                     var stepz = [];
-                    for (var i = 0; i <= (endpoint.column - startpoint.column); i++){
-                        stepz.push(payload);
-                        that.writePad(startpoint.row, startpoint.column + i);
+
+
+                    // todo: finish multirow sequence
+                    var beats = endpoint.row - startpoint.row + 1;
+                    for (var r = startpoint.row; r <= endpoint.row; r++){
+                        for (var c = startpoint.column; c <= endpoint.column; c++){
+                            stepz.push(payload);
+                            that.writePad(r, c);
+                        }
                     }
                     // ??
                     var s = adam.sequence({
                         model: {
                             loop: true, 
                             target: 'synth', 
+                            beats: beats,
                             steps: stepz
                         }
                     });
+
                     var s = adam.sequence();
                     s.model.loop = true;
                     s.settarget(selectedsynth());
@@ -129,6 +138,8 @@ var pushcontroller = flock.midi.connection({
                     //console.log(stepz);
                     that.options.notedown = undefined;
                 }else{
+                    /// TODO Check if place exists on the grid
+                    console.log(pushNotesToGrid(msg));
                     that.options.notedown = msg.note;
                 };
             },
@@ -173,3 +184,39 @@ function pushNotesToGrid(msg){
         column: (notenumber-36) % 8 
     });
 };
+
+function quneoNotesToGrid(msg){
+    return({row:0, column:0});
+};
+function launchpadNotesToGrid(msg){
+    return({row:0, column:0});
+};
+
+
+var quneo = flock.midi.connection({
+    openImmediately: true,
+    ports: {
+        input: {
+            name: "Quneo"
+        },
+        output: {
+            name: "Quneo"
+        }
+    },
+    invokers: {
+        writePad: {
+            func: function( that, x = 0, y = 0, colour = 1){
+                var midimessage = {type: "noteOn", channel: 0, note: 2, velocity: colour}
+                //that.send({type: "noteOn", note: 3, velocity: 100, channel: 1})
+                //midimessage.note = ( x * 8 ) + y + 36;
+                that.send(midimessage); // set up buttons
+            },
+            args: ["{that}", "{arguments}.0"]
+        }
+    },
+    listeners: {
+        //onCreate: function(){console.log("fkljasldfj");},
+        noteOn: function(msg){console.log(msg)},
+        noteOff: function(msg){console.log(msg)},
+    }
+});

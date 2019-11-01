@@ -12,192 +12,18 @@
     </head>
     <body>
 
-
     <script src="enveloper.js"></script>
     <script src="midimappings.js"></script>
-    <script>
-/*
-        var quneo = flock.midi.connection({
-            openImmediately: true,
-            ports: {
-                input: {
-                    name: "Quneo"
-                },
-                output: {
-                    name: "Quneo"
-                }
-            },
-            invokers: {
-                writePad: {
-                    func: function( that, x = 0, y = 0, colour = 1){
-                         var midimessage = {type: "noteOn", channel: 0, note: 2, velocity: colour}
-                         //that.send({type: "noteOn", note: 3, velocity: 100, channel: 1})
-                         //midimessage.note = ( x * 8 ) + y + 36;
-                         that.send(midimessage); // set up buttons
-                    },
-                    args: ["{that}", "{arguments}.0"]
-                }
-            },
-            listeners: {
-                onCreate: function(){console.log("fkljasldfj");},
-                noteOn: function(msg){console.log(msg)},
-                noteOff: function(msg){console.log(msg)},
-            }
-        });
-
-        var pushcontroller = flock.midi.connection({
-            openImmediately: true,
-             sysex: true,
-             ports: {
-                 input: {
-                     name:"Ableton Push User Port" 
-                 },
-                 output: {
-                     name: "Ableton Push User Port" 
-                 }
-             }, 
-             notedown: undefined, 
-             invokers: {
-                 writePad: {
-                     func: function(that, x = 0, y = 0, colour = 1){
-                         var midimessage = {type: "noteOn", channel: 0, note: 36, velocity: colour}
-                         midimessage.note = ( x * 8 ) + y + 36;
-                         that.send(midimessage); // set up buttons
-                     },
-                     args: ["{that}", "{arguments}.0", "{arguments}.1", "{arguments}.2"]
-                 },
-             },
-             listeners: {
-                 onReady: {
-                     func: function(that){
-                         for(var x = 0; x < 8; x++){
-                             for( var y = 0; y < 8; y++){
-                                 that.writePad(x,y,0);
-                             }
-                         }
-                         that.send({type: "control", number: 85, value: 1, channel: 0}); // play button
-                         that.send({type: "control", number: 87, value: 1, channel: 0}); // new button
-                         that.send({type: "control", number: 40, value: 1, channel: 0}); // 1/16 button
-                         that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
-                         that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
-                         that.send({type: "control", number: 102, value: 1, channel: 0}); // bottom strip
-                     },
-                     args: ["{that}"]
-                 },
-                 noteOff: {
-                     func: function(that, msg){
-                         if (msg.note < 30){return;}; // push knob touches send noteon and off
-                         if (msg.note === that.options.notedown){
-                             var pos = pushNotesToGrid(msg);
-                             that.writePad( pos.row, pos.column  );
-                             var payload = {"func": "trig", "args": 200};
-                             var s = adam.sequence();
-                             s.model.loop = true;
-                             s.settarget(selectedsynth());
-                             s.arraytosequence([payload]); 
-                             a.addsequence(s);
-                             console.log("single");
-                         }
-                         that.options.notedown = undefined;
-                     },
-                     args: ["{that}", "{arguments}.0"]
-                 },
-                 noteOn: {
-                     func: function(that, msg){
-                         if (msg.note < 30){return;}; // push knob touches send noteon and off
-
-                         // todo : check to see if grid space is occupied
-
-                         // create sequence!
-                         if (that.options.notedown !== undefined && that.options.notedown !== msg.note){
-                             // todo: figure out orientation 
-
-                             var startpoint, endpoint; 
-                             if (msg.note < that.options.notedown){
-                                startpoint = pushNotesToGrid (msg);
-                                endpoint = pushNotesToGrid (that.options.notedown);
-                             }else{
-                                endpoint = pushNotesToGrid (msg);
-                                startpoint = pushNotesToGrid (that.options.notedown);
-                             };
-
-
-                             // todo: add multirow sequence
-                             var payload = {"func": "trig", "args": 1000};
-                             var stepz = [];
-                             for (var i = 0; i <= (endpoint.column - startpoint.column); i++){
-                                 stepz.push(payload);
-                                 that.writePad(startpoint.row, startpoint.column + i);
-                             }
-                             // ??
-                             var s = adam.sequence({
-                               model: {
-                                     loop: true, 
-                                     target: 'synth', 
-                                     steps: stepz
-                                 }
-                             });
-                             var s = adam.sequence();
-                             s.model.loop = true;
-                             s.settarget(selectedsynth());
-                             s.arraytosequence(stepz);
-
-                             a.addsequence(s);
-
-                             //console.log(stepz);
-                             that.options.notedown = undefined;
-                         }else{
-                             that.options.notedown = msg.note;
-                         };
-                     },
-                     args: ["{that}", "{arguments}.0"]
-                 },
-                 control: {
-                     func: function(that, msg){
-                         console.log(msg);
-                         if(msg.number === 85 && msg.value === 127){
-                             a.play();
-                         }
-                         // change selected synth 
-                         if(msg.number === 20 ){
-                             selectedsynth = adam.sawsynth;
-                             that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
-                             that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
-                         }
-                         if(msg.number === 21 ){
-                             selectedsynth = adam.ticksynth;
-                             that.send({type: "control", number: 20, value: 1, channel: 0}); //  top strip
-                             that.send({type: "control", number: 21, value: 10, channel: 0}); //  top strip
-                         }
-
-                         if(msg.number >= 102 && msg.number <= 109){
-                             // change selected payload
-                         }
-                     },
-                     args: ["{that}", "{arguments}.0"]
-                 }
-             }
-        });
-
-        function pushNotesToGrid(msg){
-            var notenumber; 
-            if (typeof msg === "number")
-                notenumber = msg;
-            else
-                notenumber = msg.note;
-
-            return ({ 
-                row: Math.floor((notenumber - 36) / 8),
-                column: (notenumber-36) % 8 
-            });
-        };
-    */
-    </script>
 
     <script>
         fluid.defaults( "adam.gridquencer", {
             gradeNames: "fluid.modelComponent",
-            model :{}, // put a grid in here? put outputs in here? put inputs in here? 
+            model :{}, 
+            /*
+            subcomponents: {
+                grid: "adam.thegrid"
+            },
+            */
             invokers: {
                 addsequence: {
                     func: function(that, changespec, payloads){
@@ -222,58 +48,10 @@
 
     <script src="synths.js"></script>
     <script>
-    /*
-        fluid.defaults("adam.ticksynth", {
-            gradeNames: "flock.synth",
-            synthDef: {
-                id: "osc",
-                ugen: "flock.ugen.impulse",
-                freq: {
-                    ugen: "flock.ugen.xLine",
-                    start: 0,
-                    end: 0,
-                    duration: 1
-                }, // mul: 0.5
-            },
-            invokers: {
-                trig: {
-                    func: function(that){
-                        that.set({"osc.freq.start": 1000, "osc.freq.end": 0});
-                    },
-                    args: ["{that}"]
-                }
-            }
-        });
-
-        fluid.defaults("adam.sawsynth", {
-            gradeNames: "flock.synth",
-            synthDef:{
-                id: "osc",
-                ugen: "flock.ugen.sawOsc",
-                freq: 1000,
-                mul: {
-                    ugen: "flock.ugen.asr",
-                    id: "env",
-                    attack: 0.01,
-                    sustain: 0.5,
-                    release: 0.1
-                }
-            },
-            invokers: {
-                trig: {
-                    func: function(that, freq){
-                        that.set("osc.freq", freq);
-                        that.set("env.gate", 1);
-                        setTimeout(function(){that.set("env.gate", 0)}, 10);
-                    },
-                    args: ["{that}", "{arguments}.0"]
-                }
-            }
-        });
-        */
         //------------------------------------------
         // grid model
         //------------------------------------------
+/*
         fluid.defaults("adam.grid", {
             gradeNames:  "fluid.modelComponent",
             numPads: 64,
@@ -297,7 +75,7 @@
         adam.grid.initEmptyGrid = function (numPads) {
             var pads = [];
             for (var i = 0; i < numPads; i++) {
-                pads[i] = 0;
+                pads[i] = false;
             }
             // return pads;  // ??
         };
@@ -306,6 +84,14 @@
             adam.push.sendMidiForStateChange(padIdx, value);
         };
 
+        fluid.defaults("adam.gridzone",{
+            gradeNames: "fluid.modelComponent",
+            model: {
+                gridposition: null,
+                activeposition: null,
+            },
+        });
+*/
         fluid.defaults("adam.grid", {
             gradeNames: "fluid.modelComponent",
             model: {
@@ -314,27 +100,41 @@
                 columns: 8,
                 grid: [] // 0-64
             },
+            modelListeners: {}, //////  THIS!!!!
             invokers: {
                 addzone: { 
-                    func: function(that, xpos, ypos ){
-                        if (that.model.allowflow){
+                    func: function(that, startpos, endpos ){
+                        if (that.model.allowoverflow){
                             // allow all additions to the grid
                             return true;
                         }else{
+                            // that.checkzoneoverlap(startpos, endpos);
                             // if region doesn't overlap then add
-                            return true;
-                            // if region overlaps don't add and return false
-                            return false;
+                            if (that.checkzoneoverlap( zone ) ){
+                                return true;
+                            }else{
+                                // if region overlaps don't add and return false
+                                return false;
+                            }
                         }
                     },
                     args: ["{that}", "{arguments}.0", "{arguments}.1"]
-                }
+                },
+                checkzoneoverlap: {
+                    func: function(that, zone){
+                        for(const cell of zone){
+                            if( that.model.grid[cell.x*8 + cell.y] !== undefined ) return false;
+                        }
+                        return true;
+                    },
+                    args: ["{that}", "{arguments}.0", "{arguments}.1"]
+                },
             },
             listeners: {
                 onCreate: {
                     func: function(that){
                         for (var i = 0; i < (that.model.rows * that.model.columns); i++){
-                            that.model.grid[i] = 0;
+                            that.model.grid[i] = undefined;
                         }
                     },
                     args: ["{that}"]
@@ -379,6 +179,7 @@
         fluid.defaults("adam.sequence", {
             gradeNames: "fluid.modelComponent",
             model: {
+                beats: 1,
                 steps: {},
                 target: null, // bad practice?
                 mute: false,
@@ -430,13 +231,21 @@
             }
         });
 
+        fluid.defaults("adam.gridsequence", {
+            gradeNames: "adam.sequence",
+            model: {
+                locations: [] // array matching the length of steps with index, x, y for each step
+            },
+        });
+
         fluid.defaults("adam.sequencer",{
-            gradeNames: "flock.synth",
+            gradeNames: "flock.synth", /// modelComponent?
             model: {
                 tempo: 60,
                 beatlength: 480,
                 ticktime: 0,
                 sequences: [],
+                selectedsequence: null 
             },
             synthDef: {
                 ugen: "flock.ugen.triggerCallback",
@@ -478,19 +287,65 @@
             invokers: {
                 setbpm: {
                     func: function(that, bpm){
-                        that.set("pulse.freq", bpm);
+                        that.model.bpm = bpm;
+                        that.set("pulse.freq", that.model.bpm/60);
                     },
                     args: ["{that}", "{argumentss}.0"]
+                },
+                getsequence: {
+                    func: function(that, seq){
+                        return that.sequences.find( seq );
+                    },
+                    args: ["{that}", "{arguments}.0"]
                 },
                 addsequence: {
                     func: function(that, seq){
                         that.model.sequences.push(seq);
+                        console.log(that.model.sequences);
+                        //that.model.selectedsequence = that.model.sequences[that.model.sequences.length-1]
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
                 removesequence: {
                     func: function(that, seq){
-                        that.model.sequences.pop();
+                        if (seq === undefined){
+                            that.model.sequences.pop();
+                        }else{
+                            that.model.sequences.splice( that.model.sequences.indexOf(seq), 1);
+                        }
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                },
+                mutesequence: {
+                    func: function(that, seq){
+                        that.model.sequences.find(seq).mute = true;
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                },
+                selectsequence: {
+                    func: function(that, seq){
+                        console.log(Array.isArray(that.model.sequences));
+                        if ( that.model.sequences.find(seq) ){ 
+                                that.model.selectedsequence = seq;
+                        }
+                        //console.log(that.model);
+                        //console.log(seq);
+
+                        /*
+                        seqprops = Object.getOwnPropertyNames(seq);
+                        for (let s of that.model.sequences){
+                            let seqproperties = Object.getOwnProperyNames(s);
+                            if (seq.length !== seqproperties.length){ continue; }
+
+                            for (var i = 0; i < seqproperties.length; i++ ){
+                                var propertyname = seqproperties[i];
+                                if (seq[propertyname] !== s[propertyname]) return false;
+                            }
+                            that.model.selectedsequence = seq;
+                            return true;
+                        }
+                        return false;
+                        */
                     },
                     args: ["{that}", "{arguments}.0"]
                 }
@@ -501,6 +356,7 @@
         var a = adam.sequencer();
         var selectedsynth = adam.sawsynth; // 
         var selectedpayload = {}; // ??
+        var selectedsequence = null;
 
     </script>
 
@@ -508,12 +364,13 @@
     <ul>
         <li><s>single step sequence</s> </li>
         <li> <s>multiple synths availabe on top pads</s></li>
+        <li> select sequence </li>
         <li> mute sequence </li>
         <li> reverse sequence </li>
         <li> delete sequence </li>
         <li> check to see if grid placement exists already... </li>
         <li> highlight step</li>
-        <li>change sequence length by ammending it </li>
+        <li> change sequence length by ammending it </li>
         <li> touch a step to edit its payload?</li>
         <li> offset by touching it (requires mode switching?) </li>
         <li> delete by touching the zone again </li>
