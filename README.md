@@ -22,6 +22,11 @@ Colin's Awesome Gists
 - https://gist.github.com/colinbdclark/4f6f859dca81e4ce17fef1e5ee2bc40a  -- Bergson AudioContext Example
 
 
+Tony's Awesome Projects
+- https://bitbucket.org/duhrer/flocking-midi-select-ng/
+- https://bitbucket.org/duhrer/flocking-midi-interchange/
+- https://bitbucket.org/duhrer/flockquencer/
+
 Fluid Infusion Docs
 - https://docs.fluidproject.org/infusion/development/FrameworkConcepts.html#ioc
 - https://docs.fluidproject.org/infusion/development/tutorial-developerIntroduction/DeveloperIntroductionToInfusionFramework-ModelsAndModelComponents.html

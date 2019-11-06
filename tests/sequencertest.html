@@ -12,8 +12,6 @@
     </head>
     <body>
 
-    <script src="enveloper.js"></script>
-    <script src="midimappings.js"></script>
 
     <script>
         fluid.defaults( "adam.gridquencer", {
@@ -103,29 +101,38 @@
             modelListeners: {}, //////  THIS!!!!
             invokers: {
                 addzone: { 
+                    //TODO:  should this function take a zone or should it also define the zone?
                     func: function(that, startpos, endpos ){
                         if (that.model.allowoverflow){
                             // allow all additions to the grid
                             return true;
                         }else{
-                            // that.checkzoneoverlap(startpos, endpos);
                             // if region doesn't overlap then add
-                            if (that.checkzoneoverlap( zone ) ){
-                                return true;
+                            if(endpos !== undefined){
+                                return that.checkzoneoverlap(startpos, endpos);
                             }else{
-                                // if region overlaps don't add and return false
-                                return false;
+                                return that.checkcelloverlap(startpos);
                             }
                         }
                     },
                     args: ["{that}", "{arguments}.0", "{arguments}.1"]
                 },
-                checkzoneoverlap: {
+                checkzoneoverlap:{
                     func: function(that, zone){
-                        for(const cell of zone){
-                            if( that.model.grid[cell.x*8 + cell.y] !== undefined ) return false;
+                        for( cell in zone){
+                            if (!that.checkcelloverlap(cell)) return false;
                         }
                         return true;
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                },
+                checkcelloverlap: {
+                    func: function(that, cell){
+                        if( that.model.grid[cell.x*8 + cell.y] !== undefined ){ 
+                            return false;
+                        }else{
+                            return true;
+                        }
                     },
                     args: ["{that}", "{arguments}.0", "{arguments}.1"]
                 },
@@ -186,7 +193,8 @@
                 length: null, //
                 loop: false,
                 reverse: false, // 
-                sync: "temp", // should a sequence start immediately or have a way of getting into sync?
+                sync: "tempo", // should a sequence start immediately or have a way of getting into sync?
+                tickposition: null, // not used yet. useful for retriggering
                 // steps are either change appliers for synth.set
                 // or json {"func":"name", "args",[]} invoking the target
             },
@@ -211,11 +219,27 @@
                 },
                 arraytosequence: {
                     func: function(that, arr){
-                        // check if arr if undefined? 
-                        // check ticks in a beat? 
-                        const steplength = Math.floor(480 / arr.length);
-                        for(var i = 0; i < arr.length; i++){
-                            that.model.steps[steplength * i] = arr[i];
+                        if (!Array.isArray(arr)){
+                            console.log('warning: arrays must be used for sequences');
+                            return -1;
+                        }
+
+                        // 480 is divisible by many divisions up to 20 without being too unwielding for the clock
+                        const beatlength = 480;  
+                        if( Array.isArray(arr[0])){ // multibeat sequence
+                            that.model.beats = arr.length;
+                            for (var b = 0; b < arr.length; b++){
+                                const steplength = Math.floor(beatlength / arr[b].length);
+                                for (var i = 0; i < arr[b].length; i++){
+                                    console.log( (steplength *i) + (beatlength * b));
+                                    that.model.steps[ (steplength * i) + (beatlength * b) ] = arr[b][i];
+                                }
+                            }
+                        }else{ // single beat sequence
+                            const steplength = Math.floor(beatlength / arr.length);
+                            for(var i = 0; i < arr.length; i++){
+                                that.model.steps[steplength * i] = arr[i];
+                            }
                         }
                     },
                     args: ["{that}", "{arguments}.0"]
@@ -322,6 +346,7 @@
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
+                //// BROKEN
                 selectsequence: {
                     func: function(that, seq){
                         console.log(Array.isArray(that.model.sequences));
@@ -355,7 +380,7 @@
 
         var a = adam.sequencer();
         var selectedsynth = adam.sawsynth; // 
-        var selectedpayload = {}; // ??
+        var selectedpayload = {}; // 
         var selectedsequence = null;
 
     </script>
@@ -365,7 +390,7 @@
         <li><s>single step sequence</s> </li>
         <li> <s>multiple synths availabe on top pads</s></li>
         <li> select sequence </li>
-        <li> mute sequence </li>
+        <li> <s>mute sequence</s> </li>
         <li> reverse sequence </li>
         <li> delete sequence </li>
         <li> check to see if grid placement exists already... </li>
@@ -376,7 +401,7 @@
         <li> delete by touching the zone again </li>
         <li> reverse by touching the first (what's the difference of cat to one and reverse?) </li>
         <li> change tempo</li>
-        <li> multiple row/beat sequences</li>
+        <li> <s>multiple row/beat sequences</s></li>
         <li> options for step payloads (put them on the next row?)</li>
         <li> cross rhythms, poly temporal (sequencer sends message when a sync occurs?)</li>
         <li> chain sequences </li>
@@ -411,5 +436,9 @@
         */
     </script>
 
+    <script src="enveloper.js"></script>
+    <script src="midimappings.js"></script>
+    <script>
+    </script>
     </body>
 </HTML>
