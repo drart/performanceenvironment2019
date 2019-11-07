@@ -1,5 +1,4 @@
 var thegrid = adam.grid();
-console.log(thegrid);
 
 fluid.defaults("controllertogridmapper", {
     gradeNames: ["fluid.modelComponent"], // push controller
@@ -84,13 +83,19 @@ fluid.defaults("adam.pushconnection", {
                 } // todo: push knob touches send noteon and off
                 if (msg.note === that.options.notedown){
                     var pos = pushNotesToGrid(msg);
+                    //console.log(pos);
+                    //console.log(thegrid.checkcelloverlap(pos));
+                    thegrid.addcell(pos);
+                    //console.log(thegrid.checkcelloverlap(pos));
                     that.writePad( pos.row, pos.column  );
                     var payload = {"func": "trig", "args": 200};
                     var s = adam.sequence();
-                    s.model.loop = true;
+                    s.model.loop = true;  // TODO what should be in the grid? 
                     s.settarget(selectedsynth());
                     s.arraytosequence([payload]); 
                     a.addsequence(s);
+
+                    console.log( a.selectsequence(s) );
                     //a.selectsequence(s); //// BROKEN?!?!?
                     selectedsequence = s;
                     console.log("single");
@@ -162,8 +167,8 @@ fluid.defaults("adam.pushconnection", {
 
                     var s = adam.sequence();
                     s.model.loop = true;
-                    s.model.mute = (Math.random() > 0.1)? true : false;
-                    if (s.model.mute) console.log('sequence is muted');
+                    //s.model.mute = (Math.random() > 0.1)? true : false;
+                    //if (s.model.mute) console.log('sequence is muted');
                     s.settarget(selectedsynth());
                     s.arraytosequence(stepz);
 
@@ -254,6 +259,40 @@ fluid.defaults("adam.quneoconnection", {
         noteOff: function(msg){console.log(msg)},
     }
 });
+
+
+//------------------------------------------
+// grid to push mappings
+//------------------------------------------
+fluid.defaults("adam.pushState", {
+    gradeNames: "fluid.modelComponent",
+    model: {
+        mode: "grid", // envelope, sequence, payload
+        sequencePads: {
+            "0": {
+                enabled: false,
+                colour: 98
+            }
+        },
+        samplePads: {
+            "0": {
+                enabled: true
+            }
+        }
+    },
+    modelListeners:{},
+    listeners: {
+        addsequence: {
+            funcName: "adam.pushState.addsequence",
+            args: ["{that}", "{arguments}.0", "{arguments}.1"]
+        } // add sequence to sequencer 
+    },
+    invokers: {}
+});
+
+adam.pushState.addsequence = function(that, startpos, endpos){
+    adam.grid.addsequence();
+};
 
 
 /*

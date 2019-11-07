@@ -17,11 +17,9 @@
         fluid.defaults( "adam.gridquencer", {
             gradeNames: "fluid.modelComponent",
             model :{}, 
-            /*
             subcomponents: {
                 grid: "adam.thegrid"
             },
-            */
             invokers: {
                 addsequence: {
                     func: function(that, changespec, payloads){
@@ -117,25 +115,39 @@
                     },
                     args: ["{that}", "{arguments}.0", "{arguments}.1"]
                 },
-                checkzoneoverlap:{
-                    func: function(that, zone){
-                        for( cell in zone){
-                            if (!that.checkcelloverlap(cell)) return false;
-                        }
-                        return true;
+                addcell: {
+                    func: function(that, cell){
+                        that.model.grid[cell.row*8 + cell.column] = true;
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
+                checkzoneoverlap:{ /// TODO 
+                    func: function(that, startpos, endpos){
+                        for(var r = startpos.row; x < endpos.row+1; r++){
+                            for (var c = startpos.column; c < endpos.column+1; c++){
+                                if (!that.checkcelloverlap({row:r, column: c})) return false;
+                            }
+                        }
+                        return true;
+                    },
+                    args: ["{that}", "{arguments}.0", "{arguments}.1"]
+                },
                 checkcelloverlap: {
                     func: function(that, cell){
-                        if( that.model.grid[cell.x*8 + cell.y] !== undefined ){ 
+                        if( that.model.grid[cell.row*8 + cell.column] !== undefined ){ 
                             return false;
                         }else{
                             return true;
                         }
                     },
-                    args: ["{that}", "{arguments}.0", "{arguments}.1"]
+                    args: ["{that}", "{arguments}.0"]
                 },
+                removecell: {
+                    func: function(that, cell){
+                        that.model.grid[cell.row*8 + cell.column] = undefined;
+                    },
+                    args: ["{that}", "{arguments}.0"]
+                }
             },
             listeners: {
                 onCreate: {
@@ -149,38 +161,7 @@
             }
         });
 
-        //------------------------------------------
-        // grid to push mappings
-        //------------------------------------------
-        fluid.defaults("adam.pushState", {
-            gradeNames: "fluid.modelComponent",
-            model: {
-                mode: "grid", // envelope, sequence, payload
-                sequencePads: {
-                    "0": {
-                        enabled: false,
-                        colour: 98
-                    }
-                },
-                samplePads: {
-                    "0": {
-                        enabled: true
-                    }
-                }
-            },
-            modelListeners:{},
-            listeners: {
-                addsequence: {
-                    funcName: "adam.pushState.addsequence",
-                    args: ["{that}", "{arguments}.0", "{arguments}.1"]
-                } // add sequence to sequencer 
-            },
-            invokers: {}
-        });
 
-        adam.pushState.addsequence = function(that, startpos, endpos){
-            adam.grid.addsequence();
-        };
 
 
         fluid.defaults("adam.sequence", {
@@ -286,7 +267,7 @@
                             }
                             for (let s of that.model.sequences){
                                 var thetick = (s.model.loop === true) ? that.model.ticktime % that.model.beatlength : that.model.ticktime;
-                                if ( s.model.steps[thetick] !== undefined){
+                                if ( s.model.steps[thetick] !== undefined && s.model.mute === false){
                                     const payload = s.model.steps[thetick];
                                     const target = s.model.target;
                                     
@@ -316,17 +297,22 @@
                     },
                     args: ["{that}", "{argumentss}.0"]
                 },
-                getsequence: {
+                getsequence: { 
                     func: function(that, seq){
-                        return that.sequences.find( seq );
+                        let result = that.model.sequences.indexOf(seq);
+
+                        if( result !== -1 ){
+                            result = that.model.sequences[ result ]; 
+                            return result;
+                        }else{
+                            return undefined;
+                        }
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
                 addsequence: {
                     func: function(that, seq){
                         that.model.sequences.push(seq);
-                        console.log(that.model.sequences);
-                        //that.model.selectedsequence = that.model.sequences[that.model.sequences.length-1]
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
@@ -335,42 +321,26 @@
                         if (seq === undefined){
                             that.model.sequences.pop();
                         }else{
-                            that.model.sequences.splice( that.model.sequences.indexOf(seq), 1);
+                            that.model.sequences.splice( that.getsequence(seq), 1);
                         }
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
                 mutesequence: {
                     func: function(that, seq){
-                        that.model.sequences.find(seq).mute = true;
+                        that.getsequence(seq).mute = true;
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
-                //// BROKEN
                 selectsequence: {
                     func: function(that, seq){
-                        console.log(Array.isArray(that.model.sequences));
-                        if ( that.model.sequences.find(seq) ){ 
-                                that.model.selectedsequence = seq;
-                        }
-                        //console.log(that.model);
-                        //console.log(seq);
-
-                        /*
-                        seqprops = Object.getOwnPropertyNames(seq);
-                        for (let s of that.model.sequences){
-                            let seqproperties = Object.getOwnProperyNames(s);
-                            if (seq.length !== seqproperties.length){ continue; }
-
-                            for (var i = 0; i < seqproperties.length; i++ ){
-                                var propertyname = seqproperties[i];
-                                if (seq[propertyname] !== s[propertyname]) return false;
-                            }
+                        console.log( that.getsequence(seq) );
+                        if ( that.getsequence(seq) !== -1 ){ 
                             that.model.selectedsequence = seq;
                             return true;
+                        }else{
+                            return false;
                         }
-                        return false;
-                        */
                     },
                     args: ["{that}", "{arguments}.0"]
                 }
@@ -389,11 +359,11 @@
     <ul>
         <li><s>single step sequence</s> </li>
         <li> <s>multiple synths availabe on top pads</s></li>
-        <li> select sequence </li>
+        <li> <s>select sequence </s></li>
         <li> <s>mute sequence</s> </li>
         <li> reverse sequence </li>
         <li> delete sequence </li>
-        <li> check to see if grid placement exists already... </li>
+        <li> <s>check to see if grid placement exists already... </s></li>
         <li> highlight step</li>
         <li> change sequence length by ammending it </li>
         <li> touch a step to edit its payload?</li>
