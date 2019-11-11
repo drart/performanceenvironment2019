@@ -35,7 +35,6 @@ fluid.defaults("controllertogridmapper", {
 
 fluid.defaults("adam.pushconnection", {
     gradeNames: ["flock.midi.connection"],
-//var pushcontroller = flock.midi.connection({
     openImmediately: true,
     sysex: true,
     ports: {
@@ -83,22 +82,22 @@ fluid.defaults("adam.pushconnection", {
                 } // todo: push knob touches send noteon and off
                 if (msg.note === that.options.notedown){
                     var pos = pushNotesToGrid(msg);
-                    //console.log(pos);
-                    //console.log(thegrid.checkcelloverlap(pos));
+
+                    console.log(thegrid.checkcelloverlap(pos));
+
+                    //if (thegrid.checkcelloverlap(pos)){ thegrid.addcell(pos)}
                     thegrid.addcell(pos);
-                    //console.log(thegrid.checkcelloverlap(pos));
                     that.writePad( pos.row, pos.column  );
-                    var payload = {"func": "trig", "args": 200};
+                    var payload= {"func": "trig", "args": 200};
+                    payload.location = pushNotesToGrid(msg);
                     var s = adam.sequence();
                     s.model.loop = true;  // TODO what should be in the grid? 
                     s.settarget(selectedsynth());
                     s.arraytosequence([payload]); 
                     a.addsequence(s);
 
-                    console.log( a.selectsequence(s) );
-                    //a.selectsequence(s); //// BROKEN?!?!?
-                    selectedsequence = s;
-                    console.log("single");
+                    // TODO move this to the sequencer options
+                    a.selectsequence(s); 
                 }
                 that.options.notedown = undefined;
             },
@@ -132,17 +131,19 @@ fluid.defaults("adam.pushconnection", {
                     // ///
 
                     // todo better payload additions 
-                    var payload = {"func": "trig", "args": 1000};
                     var stepz = [];
 
-                    // fix: empty first index in array?
                     var beats = endpoint.row - startpoint.row + 1;
-                    console.log(endpoint.row + ",", + startpoint.row);
+                    //console.log(endpoint.row + ",", + startpoint.row);
                     for (var r = startpoint.row; r <= endpoint.row; r++){
                         if(endpoint.row !== startpoint.row){ 
                             stepz.push([]);// mutli beat row
                         }
                         for (var c = startpoint.column; c <= endpoint.column; c++){
+                            var payload = {"func": "trig", "args": 1000};
+                            payload.location = {row: r, column: c}; 
+                            //var loc = {row: r, column: c}; 
+                            //payload.location = JSON.parse(JSON.stringify(loc));
                             if(endpoint.row === startpoint.row){
                                 stepz.push(payload); // single beat sequence 
                             }else{
@@ -173,11 +174,12 @@ fluid.defaults("adam.pushconnection", {
                     s.arraytosequence(stepz);
 
                     a.addsequence(s);
+                    a.selectsequence(s); 
 
                     that.options.notedown = undefined;
                 }else{
                     /// TODO Check if place exists on the grid
-                    console.log(pushNotesToGrid(msg));
+                    //console.log(pushNotesToGrid(msg));
                     that.options.notedown = msg.note;
                 };
             },
@@ -295,12 +297,17 @@ adam.pushState.addsequence = function(that, startpos, endpos){
 };
 
 
-/*
 (function(){
-    var portsavailable = flock.midi.logPorts();
-    console.log(portsavailable);
-    for(device of portsavailable.inputs){
-        console.log(device.name);
-    }
+    flock.midi.requestPorts(foundports, porterror);
+    function foundports(ports){
+        for( p of ports.inputs){
+            if ( p.name === "Ableton Push User Port" ){
+                window.pushr = adam.pushconnection();
+            }
+            if ( p.name === "QuNeo" ){
+                alert('quneo found');
+            }
+        }
+    }; 
+    function porterror(error){console.log(error)};
 })()
-*/

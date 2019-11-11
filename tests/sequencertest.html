@@ -12,23 +12,13 @@
     </head>
     <body>
 
-
     <script>
         fluid.defaults( "adam.gridquencer", {
-            gradeNames: "fluid.modelComponent",
+            gradeNames: "adam.sequencer",
             model :{}, 
             subcomponents: {
                 grid: "adam.thegrid"
             },
-            invokers: {
-                addsequence: {
-                    func: function(that, changespec, payloads){
-                        // test payloads for object or array
-                    
-                    },
-                    args: ["{that}", "{arguments}.0"]
-                },
-            }
         });
 
         fluid.defaults( "adam.gridsynth", {
@@ -161,9 +151,6 @@
             }
         });
 
-
-
-
         fluid.defaults("adam.sequence", {
             gradeNames: "fluid.modelComponent",
             model: {
@@ -178,6 +165,9 @@
                 tickposition: null, // not used yet. useful for retriggering
                 // steps are either change appliers for synth.set
                 // or json {"func":"name", "args",[]} invoking the target
+                playing: false,
+                currentstep: undefined,
+                previousstep: undefined,
             },
             invokers: {
                 settarget: {
@@ -212,7 +202,7 @@
                             for (var b = 0; b < arr.length; b++){
                                 const steplength = Math.floor(beatlength / arr[b].length);
                                 for (var i = 0; i < arr[b].length; i++){
-                                    console.log( (steplength *i) + (beatlength * b));
+                                    //console.log( (steplength *i) + (beatlength * b));
                                     that.model.steps[ (steplength * i) + (beatlength * b) ] = arr[b][i];
                                 }
                             }
@@ -266,16 +256,35 @@
                                 console.log("beat");
                             }
                             for (let s of that.model.sequences){
-                                var thetick = (s.model.loop === true) ? that.model.ticktime % that.model.beatlength : that.model.ticktime;
+                                // TODO should ticktime be kept in the loop instead of the sequencer? 
+                                var thetick = (s.model.loop === true) ? that.model.ticktime % (that.model.beatlength * s.model.beats) : that.model.ticktime;
                                 if ( s.model.steps[thetick] !== undefined && s.model.mute === false){
                                     const payload = s.model.steps[thetick];
                                     const target = s.model.target;
                                     
                                     if(target && target.loop !== false){
+                                        if(payload.location){
+                                            //console.log(payload.location);
+                                            if (pushr){
+                                                pushr.writePad(payload.location.row, payload.location.column, 30) 
+
+                                                if(s.model.previousstep){
+                                                    // TODO better reference to the hardware or display level
+                                                    pushr.writePad(s.model.previousstep.location.row, s.model.previousstep.location.column);// writes default colour
+                                                }
+                                            }
+                        
+                                        };
+                                        
+
                                         if(payload.func){
                                             target[payload.func](payload.args);
                                         }else{
                                             target.set(payload);
+                                        }
+                                        // todo better solution for single steps so that they still blink on activation? 
+                                        if ( Object.keys(s.model.steps).length > 1){
+                                            s.model.previousstep = s.model.steps[thetick];
                                         }
                                     }
                                 }
@@ -312,6 +321,8 @@
                 },
                 addsequence: {
                     func: function(that, seq){
+                        seq.model.playing = true; // todo: defer this to actual playing?
+                        seq.model.currentstep = 0;
                         that.model.sequences.push(seq);
                     },
                     args: ["{that}", "{arguments}.0"]
@@ -334,7 +345,6 @@
                 },
                 selectsequence: {
                     func: function(that, seq){
-                        console.log( that.getsequence(seq) );
                         if ( that.getsequence(seq) !== -1 ){ 
                             that.model.selectedsequence = seq;
                             return true;
@@ -364,7 +374,7 @@
         <li> reverse sequence </li>
         <li> delete sequence </li>
         <li> <s>check to see if grid placement exists already... </s></li>
-        <li> highlight step</li>
+        <li> <s>highlight step</s></li>
         <li> change sequence length by ammending it </li>
         <li> touch a step to edit its payload?</li>
         <li> offset by touching it (requires mode switching?) </li>
@@ -378,33 +388,6 @@
         <li> think through tracks and sequences and instruments </li>
         <li> payloads have functions (random pitch, random pitch from set, non-uniform random pitch set</li>
     </ul>
-    <script>
-
-        /*
-           // first demo DEMO
-        var payload = {"func": "trig", "args": 1000};
-        var s = adam.sequence();
-        s.model.loop = true;
-        s.settarget(adam.sawsynth());
-        s.arraytosequence([payload, payload, payload, payload, payload])
-
-        var t = adam.sequence();
-        t.model.loop = true;
-        t.settarget(adam.sawsynth());
-        /*
-        t.setstep(0,{"func": "trig", "args": 600});
-        t.setstep(120,{"func": "trig", "args": 600});
-        t.setstep(240,{"func": "trig", "args": 600});
-        t.setstep(360,{"func": "trig", "args": 600});
-        payload2 = { ...payload }; 
-        payload2.args = 600;
-        t.arraytosequence([payload2, payload2, payload2, payload2])
-        //t.arraytosequence([payload2, payload2])
-
-        //a.addsequence(s);
-        //a.addsequence(t);
-        */
-    </script>
 
     <script src="enveloper.js"></script>
     <script src="midimappings.js"></script>
