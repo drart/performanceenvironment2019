@@ -329,10 +329,22 @@
                 },
                 removesequence: {
                     func: function(that, seq){
+                        var deletedsequence;
                         if (seq === undefined){
-                            that.model.sequences.pop();
+                            deletedsequence = that.model.sequences.pop();
                         }else{
-                            that.model.sequences.splice( that.getsequence(seq), 1);
+                            deletedsequence = that.getsequence(seq);
+                            that.model.sequences.splice( that.model.sequences.indexOf(deletedsequence), 1);
+                        }
+                        if ( deletedsequence !== undefined ){
+                            for ( let i = 0; i < Object.keys(deletedsequence.model.steps).length; i++){
+                                let step = deletedsequence.model.steps[ Object.keys(deletedsequence.model.steps)[i] ];
+                                if (step.location){
+                                    if (pushr){
+                                        pushr.writePad(step.location.row, step.location. column, 0);
+                                    }
+                                }
+                            }
                         }
                     },
                     args: ["{that}", "{arguments}.0"]
@@ -372,7 +384,7 @@
         <li> <s>select sequence </s></li>
         <li> <s>mute sequence</s> </li>
         <li> reverse sequence </li>
-        <li> delete sequence </li>
+        <li> <s>delete sequence </s></li>
         <li> <s>check to see if grid placement exists already... </s></li>
         <li> <s>highlight step</s></li>
         <li> change sequence length by ammending it </li>

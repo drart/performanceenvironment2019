@@ -66,6 +66,7 @@ fluid.defaults("adam.pushconnection", {
                     }
                 }
                 that.send({type: "control", number: 85, value: 1, channel: 0}); // play button
+                that.send({type: "control", number: 118, value: 1, channel: 0}); // delete button
                 that.send({type: "control", number: 87, value: 1, channel: 0}); // new button
                 that.send({type: "control", number: 40, value: 1, channel: 0}); // 1/16 button
                 that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
@@ -83,6 +84,7 @@ fluid.defaults("adam.pushconnection", {
                 if (msg.note === that.options.notedown){
                     var pos = pushNotesToGrid(msg);
 
+                    // 
                     console.log(thegrid.checkcelloverlap(pos));
 
                     //if (thegrid.checkcelloverlap(pos)){ thegrid.addcell(pos)}
