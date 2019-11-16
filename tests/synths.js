@@ -1,6 +1,26 @@
 
+/*
+ * TODO Spread parameters across the knobs with values and labels? 
+*/
+
 fluid.defaults("adam.ticksynth", {
     gradeNames: "flock.synth",
+    model: {
+        volume: 1,
+    },
+    modeListeners:{
+        volume: {
+            func: function(that){
+                //console.log("model listened");// this dowsn't print? 
+                that.set("osc.mul", that.model.volme);
+            },
+            args: ["{that}"]
+            /*  // error: to understand
+             func: "{that}.set",
+             args: ["{change}.path", "{change}.value"]
+             */
+        }
+    },
     synthDef: {
         id: "osc",
         ugen: "flock.ugen.impulse",
@@ -10,15 +30,22 @@ fluid.defaults("adam.ticksynth", {
             end: 0,
             duration: 1
         }, // mul: 0.5
+        mul: "{that}.model.volume"
     },
     invokers: {
+        volume: {
+            func: function(that, vol = 1){
+                that.set("osc.mul", vol);
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
         trig: {
             func: function(that){
                 that.set({"osc.freq.start": 1000, "osc.freq.end": 0});
             },
             args: ["{that}"]
-        }
-    }
+        },
+    }, 
 });
 
 fluid.defaults("adam.sawsynth", {

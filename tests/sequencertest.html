@@ -113,7 +113,7 @@
                 },
                 checkzoneoverlap:{ /// TODO 
                     func: function(that, startpos, endpos){
-                        for(var r = startpos.row; x < endpos.row+1; r++){
+                        for(var r = startpos.row; x < endpos.row+1; r++){ //// BUG
                             for (var c = startpos.column; c < endpos.column+1; c++){
                                 if (!that.checkcelloverlap({row:r, column: c})) return false;
                             }
@@ -217,6 +217,21 @@
                 },
                 retrigger: function(){}, // placeholder
                 applyoffset: function(){}, // placeholder
+                reversesequence: {
+                    func: function(that, seq){
+                        if (!seq){
+                            console.log('warning: no sequence available to reverse');
+                            return;
+                        };
+                        var keys = Object.keys(that.model.steps);
+                        for (var i = 0; i < Math.floor(keys.length/2); i++){
+                            var temp = that.model.steps[i];
+                            console.log(temp);
+                        }
+                        console.log(that.model.steps);
+                    },
+                    args: ["{that}"]
+                },
                 clearsequence: {
                     func: function(that){
                         that.model.steps = {};
