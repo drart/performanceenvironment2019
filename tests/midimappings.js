@@ -1,40 +1,21 @@
-(function(){
-    var thegrid = adam.grid();
-    var ccc = controllertogridmapper();
-});
-
 fluid.defaults("controllertogridmapper", {
     gradeNames: ["fluid.modelComponent"], // push controller
     model: {
         mode: "sequence", // notes, envelope
-        action: "add", // delete, mute, select?
+        action: "add", // delete, mute, select, solo
     },
-    components: { // all at the same time? 
-        push: adam.pushconnection,
-        quneo: adam.quneoconnection,
-        //launchpad: null
+    components: { 
+        push: {
+            type: "adam.pushconnection",
+        },
+        quneo: {
+            type: "adam.quneoconnection",
+        },
+        launchpad: {
+            type: "fluid.modelComponent",
+        },
     },
     listeners: {
-       onCreate: {
-           func: function(that){
-               console.log('afkljlajf');
-                flock.midi.requestPorts(foundports, porterror);
-                function foundports(ports){
-                    for( p of ports.inputs){
-                        if ( p.name === "Ableton Push User Port" ){
-                            window.pushr = adam.pushconnection();
-                            //that.push = adam.pushconnection(); // ?
-                        }
-                        if ( p.name === "QUNEO" ){
-                            window.quneo = adam.quneoconnection();
-                            //that.quneo = adam.quneoconnection(); // ?
-                        }
-                    }
-                }; 
-                function porterror(error){console.log(error)};
-           },
-           args: ["{that}"]
-       },
        /*
        gridaction: { 
            func: function(that, cell){
@@ -46,6 +27,10 @@ fluid.defaults("controllertogridmapper", {
        */
     },
     invokers: {
+        addsequence: {
+            func: function(that){},
+            args: ["{that}"]
+        },
         gridmapping: {
             func: function(that, region){
                 if ( Array.isArray(region) ){
@@ -67,7 +52,7 @@ fluid.defaults("controllertogridmapper", {
 fluid.defaults("adam.pushconnection", {
     gradeNames: ["flock.midi.connection"],
     openImmediately: true,
-    sysex: true,
+    //sysex: true, // doesn't ask for page permission with this off?
     ports: {
         input: {
             name:"Ableton Push User Port" 
@@ -76,23 +61,21 @@ fluid.defaults("adam.pushconnection", {
             name: "Ableton Push User Port" 
         }
     }, 
-    notedown: undefined, 
+    gridsize: {rows: 8, columns: 8},
+    notedown: undefined,  // should this be in the model?
     invokers: {
         writePad: {
-            func: function(that, x = 0, y = 0, colour = 1){
-                var midimessage = {type: "noteOn", channel: 0, note: 36, velocity: colour}
-                midimessage.note = ( x * 8 ) + y + 36;
-                that.send(midimessage); 
-            },
+            funcName: "adam.pushwritepad",
             args: ["{that}", "{arguments}.0", "{arguments}.1", "{arguments}.2"]
         },
     },
     listeners: {
+        onCreate: console.log("pushconnection"),
         onReady: {
             func: function(that){
                 // turn off all of the pad lights
-                for(var x = 0; x < 8; x++){
-                    for( var y = 0; y < 8; y++){
+                for(var x = 0; x < that.options.gridsize.rows; x++){
+                    for( var y = 0; y < that.options.gridsize.columns; y++){
                         that.writePad(x,y,0);
                     }
                 }
@@ -103,6 +86,15 @@ fluid.defaults("adam.pushconnection", {
                 that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
                 that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
                 that.send({type: "control", number: 102, value: 1, channel: 0}); // bottom strip
+
+                that.send({type: "control", number: 90, value: 1, channel: 0}); // mute
+                that.send({type: "control", number: 60, value: 1, channel: 0}); // solo
+                that.send({type: "control", number: 61, value: 1, channel: 0}); // session
+                that.send({type: "control", number: 114, value: 1, channel: 0}); // volume
+                that.send({type: "control", number: 50, value: 1, channel: 0}); // new
+                that.send({type: "control", number: 51, value: 1, channel: 0}); // session
+                that.send({type: "control", number: 48, value: 1, channel: 0}); // select
+
             },
             args: ["{that}"]
         },
@@ -112,13 +104,13 @@ fluid.defaults("adam.pushconnection", {
                     // todo fire knob touched event 
                     return;
                 } // todo: push knob touches send noteon and off
+
                 if (msg.note === that.options.notedown){
                     var pos = pushNotesToGrid(msg);
 
-
                     /// TODO abstract
-                    thegrid.addcell(pos);
-                    that.writePad( pos.row, pos.column  );
+                    //thegrid.addcell(pos);
+                    //that.writePad( pos.row, pos.column  );
                     var payload= {"func": "trig", "args": 200};
                     payload.location = pos;
                     addsequence([payload]);
@@ -135,7 +127,15 @@ fluid.defaults("adam.pushconnection", {
                     return;
                 } // push knob touches send noteon and off
 
+                var pos = pushNotesToGrid(msg);
 
+                // TODO: check how the region overlaps? 
+                /*
+                if( thegrid.checkcelloverlap(pos) ) {
+                    console.log(thegrid.checkcelloverlap(pos));
+                    //return;
+                };
+                */
 
                 ///TODO: decouple message from mapping to sequence adding
                 // define a region 
@@ -150,11 +150,6 @@ fluid.defaults("adam.pushconnection", {
                         startpoint = pushNotesToGrid (that.options.notedown);
                     };
 
-                    // TODO: check how the region overlaps? 
-                    if( thegrid.checkcelloverlap(pos) ) {
-                        console.log(thegrid.checkcelloverlap(pos));
-                        return;
-                    };
 
                     // todo better payload additions 
                     var stepz = [];
@@ -168,7 +163,7 @@ fluid.defaults("adam.pushconnection", {
                         for (var c = startpoint.column; c <= endpoint.column; c++){
                             var payload = {"func": "trig", "args": 1000};
                             payload.location = {row: r, column: c}; 
-                            thegrid.addcell(payload.location); // bug?
+                            //thegrid.addcell(payload.location); // bug?
 
                             if(endpoint.row === startpoint.row){
                                 stepz.push(payload); // single beat sequence 
@@ -185,7 +180,9 @@ fluid.defaults("adam.pushconnection", {
                     that.options.notedown = undefined;
                 }else{
                     /// TODO Check if place exists on the grid
-                    if( thegrid.checkcelloverlap(pos) ) {}
+                    //if( thegrid.checkcelloverlap(pos) ) {}
+
+
                     that.options.notedown = msg.note;
                 };
             },
@@ -212,6 +209,11 @@ fluid.defaults("adam.pushconnection", {
                 if(msg.number >= 102 && msg.number <= 109){
                     // change selected payload
                 }
+
+                /// TODO make a delete mode
+                if( msg.number === 118 ){
+                    that.send({type: "control", number: 118, value: 4, channel: 0}); //  top strip
+                }
             },
             args: ["{that}", "{arguments}.0"]
         }
@@ -230,6 +232,11 @@ function pushNotesToGrid(msg){
         column: (notenumber-36) % 8 
     });
 };
+
+function pushKnobToMapping(msg, stepsize){
+    if(msg.value){return msg.value * stepsize};
+};
+
 
 function quneoNotesToGrid(msg){
     var notenumber;
@@ -251,15 +258,13 @@ function addsequence(stepz, pos){
     s.settarget(selectedsynth());
     s.arraytosequence(stepz);
     a.addsequence(s);
-    a.selectsequence(s); 
+    //a.selectsequence(s); 
 };
-
 
 function launchpadNotesToGrid(msg){
     console.log("temp mapping");
     return({row:0, column:0});
 };
-
 
 fluid.defaults("adam.quneoconnection", {
     gradeNames: "flock.midi.connection",
@@ -274,14 +279,9 @@ fluid.defaults("adam.quneoconnection", {
     },
     notedown: undefined, 
     invokers: {
-        writePad: { // todo two midi note assignment
-            func: function( that, x = 0, y = 0, colour = 1){ // TODO: limit range? 
-                var midimessage = {type: "noteOn", channel: 1, note: 2, velocity: colour}
-                midimessage.note = ( x * 2 ) + ( y * 16 )+ 1;
-                //console.log(midimessage);
-                that.send(midimessage); 
-            },
-            args: ["{that}", "{arguments}.0","{arguments}.1", "{arguments}.2"]
+        writePad: { 
+            funcName: "adam.quneowritepad",
+            args: ["{that}", "{arguments}.0","{arguments}.1", "{arguments}.2"] // x y colour
         },
         clearPads: {
             func: function(that){
@@ -311,7 +311,6 @@ fluid.defaults("adam.quneoconnection", {
                         startpoint = quneoNotesToGrid (that.options.notedown);
                     };
 
-                    ////// TODO BIG PROBLEM
                     // TODO: check how the region overlaps? 
                     if( thegrid.checkcelloverlap(pos) ) {
                         console.log(thegrid.checkcelloverlap(pos));
@@ -395,6 +394,20 @@ fluid.defaults("adam.pushState", {
 
 adam.pushState.addsequence = function(that, startpos, endpos){
     adam.grid.addsequence();
+};
+
+adam.pushwritepad = function(that, x = 0, y = 0, colour = 1){
+    var midimessage = {type: "noteOn", channel: 0, note: 36, velocity: colour}
+    midimessage.note = ( x * 8 ) + y + 36;
+    that.send(midimessage); 
+};
+
+// todo two midi note assignment
+adam.quneowritepad = function( that, x = 0, y = 0, colour = 1){ // TODO: limit range? 
+    var midimessage = {type: "noteOn", channel: 1, note: 2, velocity: colour}
+    midimessage.note = ( x * 2 ) + ( y * 16 )+ 1;
+    console.log(midimessage);
+    that.send(midimessage); 
 };
 
 /*
