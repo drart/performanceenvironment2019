@@ -2,7 +2,8 @@ fluid.defaults("controllertogridmapper", {
     gradeNames: ["fluid.modelComponent"], // push controller
     model: {
         mode: "sequence", // notes, envelope
-        action: "add", // delete, mute, select, solo
+        action: "add", // delete, mute, select, solo, edit, ammend
+        lastaction: undefined,
     },
     components: { 
         push: {
@@ -15,7 +16,33 @@ fluid.defaults("controllertogridmapper", {
             type: "fluid.modelComponent",
         },
     },
+    events: {
+        removesequence: null
+    },
     listeners: {
+        removesequence: {
+            func: console.log,
+            args: "fadfadf"
+        }, 
+        "{push}.events.deletemode": {
+            func: function(that, val){
+                if( that.model.action === "delete"){
+                    that.model.action = that.model.lastaction; 
+                }else{
+                    that.model.lastaction = that.model.action;
+                    that.model.action  = "delete"
+                };
+
+                //console.log( that.model);
+                
+                if ( that.model.action === "delete" ) {
+                    that.push.events.deletemodedisplay.fire(true);
+                }else{
+                    that.push.events.deletemodedisplay.fire(false);
+                };
+            },
+            args: ["{that}", "{arguments}.0"]
+        } ,
        /*
        gridaction: { 
            func: function(that, cell){
@@ -46,7 +73,6 @@ fluid.defaults("controllertogridmapper", {
             args: ["{that}", "{arguments}.0"]
         }
     }
-
 });
 
 fluid.defaults("adam.pushconnection", {
@@ -61,60 +87,45 @@ fluid.defaults("adam.pushconnection", {
             name: "Ableton Push User Port" 
         }
     }, 
+    model: {},
     gridsize: {rows: 8, columns: 8},
     notedown: undefined,  // should this be in the model?
+    events: {
+        knobtouched: null,
+        knobmoved: null,
+        deletemode: null, // for sending out to the sequencer
+        deletemodedisplay: null, // for receiving events to display on the device
+    },
     invokers: {
         writePad: {
             funcName: "adam.pushwritepad",
             args: ["{that}", "{arguments}.0", "{arguments}.1", "{arguments}.2"]
         },
+        clearpads: {
+            funcName: "adam.clearpads",
+            args: ["{that}"]
+        },
     },
     listeners: {
-        onCreate: console.log("pushconnection"),
-        onReady: {
-            func: function(that){
-                // turn off all of the pad lights
-                for(var x = 0; x < that.options.gridsize.rows; x++){
-                    for( var y = 0; y < that.options.gridsize.columns; y++){
-                        that.writePad(x,y,0);
-                    }
-                }
-                that.send({type: "control", number: 85, value: 1, channel: 0}); // play button
-                that.send({type: "control", number: 118, value: 1, channel: 0}); // delete button
-                that.send({type: "control", number: 87, value: 1, channel: 0}); // new button
-                that.send({type: "control", number: 40, value: 1, channel: 0}); // 1/16 button
-                that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
-                that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
-                that.send({type: "control", number: 102, value: 1, channel: 0}); // bottom strip
-
-                that.send({type: "control", number: 90, value: 1, channel: 0}); // mute
-                that.send({type: "control", number: 60, value: 1, channel: 0}); // solo
-                that.send({type: "control", number: 61, value: 1, channel: 0}); // session
-                that.send({type: "control", number: 114, value: 1, channel: 0}); // volume
-                that.send({type: "control", number: 50, value: 1, channel: 0}); // new
-                that.send({type: "control", number: 51, value: 1, channel: 0}); // session
-                that.send({type: "control", number: 48, value: 1, channel: 0}); // select
-
-            },
+        "onReady.clearpads": "{that}.clearpads", 
+        "onReady.pushstartlights": {
+            funcName: "adam.pushstartlights",
             args: ["{that}"]
         },
         noteOff: {
             func: function(that, msg){
                 if (msg.note < 30){
-                    // todo fire knob touched event 
+                    that.events.knobtouched(msg);
                     return;
-                } // todo: push knob touches send noteon and off
+                } 
 
                 if (msg.note === that.options.notedown){
                     var pos = pushNotesToGrid(msg);
 
-                    /// TODO abstract
-                    //thegrid.addcell(pos);
-                    //that.writePad( pos.row, pos.column  );
+                    /// TODO abstract // define region and fire event
                     var payload= {"func": "trig", "args": 200};
                     payload.location = pos;
                     addsequence([payload]);
-                    ///
                 }
                 that.options.notedown = undefined;
             },
@@ -123,19 +134,11 @@ fluid.defaults("adam.pushconnection", {
         noteOn: {
             func: function(that, msg){
                 if (msg.note < 30){
-                    // TODO  fire knob event
+                    that.events.knobtouched(msg);
                     return;
-                } // push knob touches send noteon and off
+                } 
 
                 var pos = pushNotesToGrid(msg);
-
-                // TODO: check how the region overlaps? 
-                /*
-                if( thegrid.checkcelloverlap(pos) ) {
-                    console.log(thegrid.checkcelloverlap(pos));
-                    //return;
-                };
-                */
 
                 ///TODO: decouple message from mapping to sequence adding
                 // define a region 
@@ -179,11 +182,18 @@ fluid.defaults("adam.pushconnection", {
 
                     that.options.notedown = undefined;
                 }else{
-                    /// TODO Check if place exists on the grid
-                    //if( thegrid.checkcelloverlap(pos) ) {}
-
 
                     that.options.notedown = msg.note;
+                };
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        deletemodedisplay: {
+            func: function(that, arg){
+                if( arg ){
+                    that.send({type: "control", number: 118, value: 5, channel: 0}); //  top strip
+                }else{
+                    that.send({type: "control", number: 118, value: 1, channel: 0}); //  top strip
                 };
             },
             args: ["{that}", "{arguments}.0"]
@@ -191,28 +201,38 @@ fluid.defaults("adam.pushconnection", {
         control: {
             func: function(that, msg){
                 console.log(msg);
-                if(msg.number === 85 && msg.value === 127){
-                    a.play();
-                }
-                // change selected synth 
-                if(msg.number === 20 ){
-                    selectedsynth = adam.sawsynth;
-                    that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
-                    that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
-                }
-                if(msg.number === 21 ){
-                    selectedsynth = adam.ticksynth;
-                    that.send({type: "control", number: 20, value: 1, channel: 0}); //  top strip
-                    that.send({type: "control", number: 21, value: 10, channel: 0}); //  top strip
-                }
 
-                if(msg.number >= 102 && msg.number <= 109){
-                    // change selected payload
+                if(msg.number < 11 ){
+                    that.events.knobmoved(msg);
                 }
+               
+                /// only button down 
+                if( msg.value === 127){ 
 
-                /// TODO make a delete mode
-                if( msg.number === 118 ){
-                    that.send({type: "control", number: 118, value: 4, channel: 0}); //  top strip
+                    if(msg.number === 85 && msg.value === 127){ // play button
+                        a.play();
+                    }
+                    // change selected synth 
+                    if(msg.number === 20 ){
+                        selectedsynth = adam.sawsynth;
+                        that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
+                        that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
+                    }
+                    if(msg.number === 21 ){
+                        selectedsynth = adam.ticksynth;
+                        that.send({type: "control", number: 20, value: 1, channel: 0}); //  top strip
+                        that.send({type: "control", number: 21, value: 10, channel: 0}); //  top strip
+                    }
+
+                    if(msg.number >= 102 && msg.number <= 109){
+                        // change selected payload
+                    }
+                    if( msg.number === 118 ){
+                        that.events.deletemode.fire(true); 
+                    }
+                    if( msg.number === 89 ){
+                        /// that.events.envelope.fire();
+                    }
                 }
             },
             args: ["{that}", "{arguments}.0"]
@@ -257,8 +277,9 @@ function addsequence(stepz, pos){
     s.model.loop = true;
     s.settarget(selectedsynth());
     s.arraytosequence(stepz);
-    a.addsequence(s);
-    //a.selectsequence(s); 
+    if(a.addsequence(s)){ // check if it adds correctly, maybe use options instead? 
+        a.selectsequence(s); 
+    }
 };
 
 function launchpadNotesToGrid(msg){
@@ -277,7 +298,7 @@ fluid.defaults("adam.quneoconnection", {
             name: "QUNEO"
         }
     },
-    notedown: undefined, 
+    notedown: undefined,  // should this be in the model?
     invokers: {
         writePad: { 
             funcName: "adam.quneowritepad",
@@ -309,12 +330,6 @@ fluid.defaults("adam.quneoconnection", {
                     }else{
                         endpoint = quneoNotesToGrid(msg);
                         startpoint = quneoNotesToGrid (that.options.notedown);
-                    };
-
-                    // TODO: check how the region overlaps? 
-                    if( thegrid.checkcelloverlap(pos) ) {
-                        console.log(thegrid.checkcelloverlap(pos));
-                        return;
                     };
 
                     // todo better payload additions 
@@ -410,31 +425,42 @@ adam.quneowritepad = function( that, x = 0, y = 0, colour = 1){ // TODO: limit r
     that.send(midimessage); 
 };
 
-/*
-(function(){
-    flock.midi.requestPorts(foundports, porterror);
-    function foundports(ports){
-        for( p of ports.inputs){
-            if ( p.name === "Ableton Push User Port" ){
-                window.pushr = adam.pushconnection();
-            }
-            if ( p.name === "QUNEO" ){
-                window.quneo = adam.quneoconnection();
-            }
+adam.clearpads = function(that){
+    // turn off all of the pad lights
+    for(var x = 0; x < that.options.gridsize.rows; x++){
+        for( var y = 0; y < that.options.gridsize.columns; y++){
+            that.writePad(x,y,0);
         }
-    }; 
-    function porterror(error){console.log(error)};
-})()
-*/
-                    /*
-                    var sss = adam.sequence({
-                        model: {
-                            loop: true, 
-                            target: 'synth', 
-                            beats: beats,
-                            steps: stepz
-                        }
-                    });
-                    */
-                    //console.log(sss);
-                    
+    }
+};
+
+adam.pushstartlights = function(that){
+    that.send({type: "control", number: 85, value: 1, channel: 0}); // play button
+    that.send({type: "control", number: 118, value: 1, channel: 0}); // delete button
+    that.send({type: "control", number: 87, value: 1, channel: 0}); // new button
+    that.send({type: "control", number: 40, value: 1, channel: 0}); // 1/16 button
+    that.send({type: "control", number: 20, value: 10, channel: 0}); //  top strip
+    that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
+    that.send({type: "control", number: 102, value: 1, channel: 0}); // bottom strip
+
+    that.send({type: "control", number: 90, value: 1, channel: 0}); // mute
+    that.send({type: "control", number: 60, value: 1, channel: 0}); // solo
+    that.send({type: "control", number: 61, value: 1, channel: 0}); // session
+    that.send({type: "control", number: 114, value: 1, channel: 0}); // volume
+    that.send({type: "control", number: 50, value: 1, channel: 0}); // new
+    that.send({type: "control", number: 51, value: 1, channel: 0}); // session
+    that.send({type: "control", number: 48, value: 1, channel: 0}); // select
+};
+
+/*
+   var sss = adam.sequence({
+   model: {
+   loop: true, 
+   target: 'synth', 
+   beats: beats,
+   steps: stepz
+   }
+   });
+   */
+//console.log(sss);
+

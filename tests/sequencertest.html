@@ -78,6 +78,7 @@
             },
         });
 */
+        // TODO fix all of the 8 magic numbers
         fluid.defaults("adam.grid", {
             gradeNames: "fluid.modelComponent",
             model: {
@@ -116,7 +117,11 @@
                 },
                 getcell: {
                     func: function(that, cell){
-                        return that.model.grid[cell.row * 8 + cell.column];
+                        if(cell === undefined){
+                            return that.model.grid[ that.model.selectedcell.row * that.options.columns + that.model.selectedcell.column];
+                        }else{
+                            return that.model.grid[cell.row * that.options.columns  + cell.column];
+                        }
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
@@ -151,7 +156,7 @@
                 },
                 removecell: {
                     func: function(that, cell){
-                        that.model.grid[cell.row*8 + cell.column] = undefined;
+                        that.model.grid[cell.row*that.options.columns + cell.column] = undefined;
                     },
                     args: ["{that}", "{arguments}.0"]
                 }
@@ -371,46 +376,71 @@
                     args: ["{that}", "{arguments}.0"]
                 },
                 addsequence: {
-                    func: function(that, seq){
+                    func: function(that, seq, setselected = false){
                         if(that.thegrid === null){
                             console.log('null grid');
+                            return;
                         }else{
+                            // check for overlap
                             for( key of Object.keys(seq.model.steps)){
                                 if( that.thegrid.checkcelloverlap( seq.model.steps[key].location )){
                                     console.log('grid overlap. not added.');
                                     that.model.selectedsequence = that.thegrid.getcell( seq.model.steps[key].location );
+                                    that.thegrid.model.selectedcell =  seq.model.steps[key].location ;
+                                    console.log(that.thegrid.model.selectedcell);
+
+                                    if ( ccc.model.action === "delete"){ // TODO bug here somewhere...
+                                        console.log('deleting');
+                                        console.log(that.model.selectedsequence.model.steps);
+                                        that.removesequence( that.model.selectedsequence ); 
+                                    }
+
                                     return;
                                 };
                             }
+                            // if no overlap put into grid with reference to sequence and update hardware
                             for( key of Object.keys(seq.model.steps)){
                                 let loc = seq.model.steps[key].location;
-                                ccc.push.writePad( loc.row, loc.column);
                                 that.thegrid.addcell( loc, seq );
+                                ccc.push.writePad( loc.row, loc.column);// TODO fire sequence added event
                             }
                         };
 
+                        // add sequence to sequencer
                         seq.model.playing = true; // todo: defer this to actual playing?
                         //seq.model.currentstep = 0;
+                        if(setselected){that.model.selectedsequence = seq };
                         that.model.sequences.push(seq);
                     },
                     args: ["{that}", "{arguments}.0"]
                 },
+                popsequence: {
+                    func: function(that){
+                         that.model.sequences.pop();
+                    },
+                    args: "{that}"
+                },
                 removesequence: {
                     func: function(that, seq){
                         var deletedsequence;
-                        if (seq === undefined){ // bad?
-                            deletedsequence = that.model.sequences.pop();
+                        if (seq === undefined){ 
+                            console.log('trying to delete sequence that does not exist');
                         }else{
                             deletedsequence = that.getsequence(seq);
                             that.model.sequences.splice( that.model.sequences.indexOf(deletedsequence), 1);
                         }
+
+                        // remove from grid
                         if ( deletedsequence !== undefined ){
-                            for ( let i = 0; i < Object.keys(deletedsequence.model.steps).length; i++){
-                                let step = deletedsequence.model.steps[ Object.keys(deletedsequence.model.steps)[i] ];
+                            var keys = Object.keys(deletedsequence.model.steps);
+                            for ( let i = 0; i < keys.length; i++){
+                                let step = deletedsequence.model.steps[ keys[i] ];
+                                console.log(step);
                                 if (step.location){
                                     if (ccc){
                                         ccc.push.writePad(step.location.row, step.location. column, 0);
                                     }
+                                    that.thegrid.removecell(step.location);
                                 }
                             }
                         }
@@ -447,6 +477,7 @@
 
     <input type="button" onclick="a.play();">START</input>
     <ul>
+        <li> make an api doc with list of functions and inputs</li>
         <li><s>single step sequence</s> </li>
         <li> <s>multiple synths availabe on top pads</s></li>
         <li> <s>select sequence </s></li>
