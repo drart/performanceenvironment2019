@@ -4,6 +4,8 @@ fluid.defaults("controllertogridmapper", {
         mode: "sequence", // notes, envelope
         action: "add", // delete, mute, select, solo, edit, ammend
         lastaction: undefined,
+        selectedcell: undefined,
+        lastselectedcell: undefined,
     },
     components: { 
         push: {
@@ -17,9 +19,39 @@ fluid.defaults("controllertogridmapper", {
         },
     },
     events: {
-        removesequence: null
+        removesequence: null,
+        selectcell: null,
+        setcellpayload: null,
     },
     listeners: {
+        "{push}.events.knobmoved": {
+            func: function(that, msg){
+                if (msg.value === 71 ) { // first knob
+                    //var val = a.model.selectedsequence.
+                }
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        selectcell: {
+            func: function(that, cell){
+                if(that.model.selectedcell !== undefined){
+                    that.push.writePad(that.model.selectedcell.row, that.model.selectedcell.column, 1);
+                    that.model.lastselectedcell === that.model.selectedcell;
+                }
+                that.model.selectedcell = cell;
+                that.push.writePad(cell.row, cell.column, 13);
+
+                // TODO make this better
+                //a.model.sequences[0].setlocationpayload(that.model.selectedcell, 100);
+            },
+            args: ["{that}", "{arguments}.0"]
+        },
+        setcellpayload: {
+            func: function(that, cell, payload){ // seq instead of that?
+                a.model.selectedsequence.setlocationpayload( cell, payload ); // todo: this should be for the grid not the sequence...
+            },
+            args: ["{that}", "{arguments}.0", "{arguments}.1"]
+        },
         removesequence: {
             func: console.log,
             args: "fadfadf"
@@ -115,7 +147,7 @@ fluid.defaults("adam.pushconnection", {
         noteOff: {
             func: function(that, msg){
                 if (msg.note < 30){
-                    that.events.knobtouched(msg);
+                    that.events.knobtouched.fire(msg);
                     return;
                 } 
 
@@ -134,7 +166,7 @@ fluid.defaults("adam.pushconnection", {
         noteOn: {
             func: function(that, msg){
                 if (msg.note < 30){
-                    that.events.knobtouched(msg);
+                    that.events.knobtouched.fire(msg);
                     return;
                 } 
 
@@ -413,6 +445,7 @@ adam.pushState.addsequence = function(that, startpos, endpos){
 
 adam.pushwritepad = function(that, x = 0, y = 0, colour = 1){
     var midimessage = {type: "noteOn", channel: 0, note: 36, velocity: colour}
+    //if(typeof x ===  "object"){console.log(x}; // todo: option for grid location
     midimessage.note = ( x * 8 ) + y + 36;
     that.send(midimessage); 
 };
@@ -443,7 +476,8 @@ adam.pushstartlights = function(that){
     that.send({type: "control", number: 21, value: 1, channel: 0}); //  top strip
     that.send({type: "control", number: 102, value: 1, channel: 0}); // bottom strip
 
-    that.send({type: "control", number: 90, value: 1, channel: 0}); // mute
+    that.send({type: "control", number: 90, value: 1, channel: 0}); // fixed length
+    that.send({type: "control", number: 89, value: 1, channel: 0}); // automation 
     that.send({type: "control", number: 60, value: 1, channel: 0}); // solo
     that.send({type: "control", number: 61, value: 1, channel: 0}); // session
     that.send({type: "control", number: 114, value: 1, channel: 0}); // volume
